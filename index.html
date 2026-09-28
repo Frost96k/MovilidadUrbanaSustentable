@@ -1,0 +1,1591 @@
+<!DOCTYPE html>
+<html lang="es" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dirección de Movilidad Urbana Sustentable - SFVC</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: '#f0fdf4',
+                            100: '#dcfce7',
+                            500: '#22c55e',
+                            600: '#16a34a',
+                            700: '#15803d',
+                            800: '#166534',
+                            900: '#14532d',
+                        },
+                        catamarca: {
+                            blue: '#0284c7',
+                            darkBlue: '#0f172a',
+                            accent: '#06b6d4'
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        .glass-nav {
+            background: rgba(252, 250, 250, 0.85);
+            backdrop-filter: blur(12px);
+        }
+        body { overflow-x: hidden; }
+        .site-slider {
+            display: flex;
+            align-items: flex-start;
+            width: 200vw;
+            min-height: 100vh;
+            overflow: hidden;
+            transition: transform 0.8s cubic-bezier(0.77, 0, 0.175, 1);
+        }
+        .site-slider.shift { transform: translateX(-100vw); }
+        .site-page { flex: 0 0 100vw; width: 100vw; min-height: 100vh; }
+        .news-page {
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+            background: #f4f7f6;
+        }
+        .news-main { flex: 1; }
+        .news-page > footer { width: 100%; margin-top: auto; }
+        .news-video-card video { aspect-ratio: 9 / 16; object-fit: contain; }
+        .news-reel-trigger { aspect-ratio: 9 / 16; }
+        .news-reel-trigger::after { content: ''; position: absolute; inset: 45% 0 0; background: linear-gradient(to top, rgba(2, 6, 23, .9), transparent); pointer-events: none; }
+        .news-filter.active { background: #0f172a; color: #fff; box-shadow: 0 1px 2px rgba(15, 23, 42, 0.15); }
+        .news-filter.active svg { color: #6ee7b7; }
+        #news-entrevistas .instagram-media,
+        #news-entrevistas .instagram-media iframe { width: 100% !important; min-width: 0 !important; max-width: 100% !important; margin: 0 !important; }
+        .bike-map-layout { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(260px, .7fr); gap: 1rem; }
+        .bike-map-panel { height: 520px; padding: 8px; background: #fff; border: 1px solid #e2e8f0; border-radius: 1rem; box-shadow: 0 8px 25px rgba(15, 23, 42, .06); }
+        #bike-map { width: 100%; height: 100%; min-height: 360px; border-radius: .75rem; }
+        .bike-map-side { min-width: 0; }
+        .bike-map-search { width: 100%; border: 1px solid #dbe1ea; border-radius: .75rem; padding: .7rem .8rem; outline: none; font: inherit; }
+        .bike-map-search:focus { border-color: #059669; box-shadow: 0 0 0 3px rgba(5, 150, 105, .12); }
+        .bike-map-filters { display: flex; flex-wrap: wrap; gap: .4rem; margin: .65rem 0; }
+        .bike-map-filter { border: 1px solid #dbe1ea; background: #fff; border-radius: 999px; padding: .4rem .6rem; color: #475569; font-size: .7rem; cursor: pointer; }
+        .bike-map-filter.active, .bike-map-filter:hover { background: #059669; color: #fff; border-color: #059669; }
+        .bike-map-cards { display: grid; gap: .55rem; max-height: 430px; overflow-y: auto; }
+        .bike-map-card { padding: .75rem; border: 1px solid #e2e8f0; border-radius: .85rem; background: #fff; cursor: pointer; }
+        .bike-map-card:hover, .bike-map-card.selected { border-color: #6ee7b7; box-shadow: 0 5px 16px rgba(5, 150, 105, .1); }
+        .bike-map-card h5 { margin: 0; color: #0f172a; font-size: .8rem; font-weight: 800; }
+        .bike-map-card p { margin: .35rem 0 0; color: #64748b; font-size: .7rem; }
+        @media (max-width: 900px) { .bike-map-layout { grid-template-columns: 1fr; } .bike-map-panel { height: 420px; } .bike-map-cards { max-height: 330px; } }
+        [id^="content-"] { scroll-margin-top: 90px; }
+        @media (prefers-reduced-motion: reduce) { .site-slider { transition: none; } }
+        [id^="content-"] {
+            scroll-margin-top: 90px;
+        }
+        .border-glow {
+            --glow-angle: 45deg;
+            --glow-opacity: 0;
+            position: relative;
+            isolation: isolate;
+            border-color: rgba(24, 24, 27, 0.12);
+        }
+        .border-glow::before {
+            content: '';
+            position: absolute;
+            inset: -1px;
+            border-radius: inherit;
+            padding: 1px;
+            background: conic-gradient(from var(--glow-angle), #c084fc, #f472b6, #38bdf8, #c084fc);
+            -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+            -webkit-mask-composite: xor;
+            mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+            mask-composite: exclude;
+            opacity: var(--glow-opacity);
+            pointer-events: none;
+            transition: opacity 0.25s ease-out;
+            z-index: 2;
+        }
+        .border-glow::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            border-radius: inherit;
+            box-shadow: inset 0 0 18px rgba(192, 132, 252, 0.22), inset 0 0 34px rgba(56, 189, 248, 0.12);
+            opacity: calc(var(--glow-opacity) * 0.65);
+            pointer-events: none;
+            transition: opacity 0.25s ease-out;
+            z-index: 0;
+        }
+        .border-glow > * {
+            position: relative;
+            z-index: 1;
+        }
+        .card-nav {
+            height: 60px;
+            overflow: hidden;
+            transition: height 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+        }
+        .card-nav-content {
+            visibility: hidden;
+            pointer-events: none;
+        }
+        .card-nav.open .card-nav-content {
+            visibility: visible;
+            pointer-events: auto;
+        }
+        .nav-card {
+            opacity: 0;
+            transform: translateY(50px);
+            transition: opacity 0.4s cubic-bezier(0.22, 1, 0.36, 1), transform 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+        }
+        .card-nav.open .nav-card {
+            opacity: 1;
+            transform: translateY(0);
+        }
+        .hamburger-line {
+            transform-origin: 50% 50%;
+            transition: transform 0.3s ease, opacity 0.3s ease;
+        }
+        .hamburger-menu.open .hamburger-line:first-child {
+            transform: translateY(4px) rotate(45deg);
+        }
+        .hamburger-menu.open .hamburger-line:last-child {
+            transform: translateY(-4px) rotate(-45deg);
+        }
+        #click-spark-canvas {
+            position: fixed;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 100;
+        }
+        [data-animate] {
+            opacity: 0;
+            transform: translateY(100px) scale(var(--animate-scale, 1));
+            transition: opacity 0.8s cubic-bezier(0.22, 1, 0.36, 1), transform 0.8s cubic-bezier(0.22, 1, 0.36, 1);
+            transition-delay: var(--animate-delay, 0s);
+            will-change: opacity, transform;
+        }
+        [data-animate].is-visible {
+            opacity: 1;
+            transform: translateY(0) scale(var(--animate-scale, 1));
+        }
+        @media (prefers-reduced-motion: reduce) {
+            [data-animate] {
+                opacity: 1;
+                transform: none;
+                transition: none;
+            }
+        }
+        .hero-gradient {
+            background: linear-gradient(135deg, #0f172a 0%, #166534 50%, #0284c7 100%);
+        }
+        .hero-slide {
+            position: absolute;
+            inset: 0;
+            opacity: 0;
+            background-position: center;
+            background-size: cover;
+            transform: scale(1.04);
+            transition: opacity 1s ease-in-out, transform 6s ease-out;
+        }
+        .hero-slide.is-active {
+            opacity: 1;
+            transform: scale(1);
+        }
+        .hero-slide video {
+            display: block;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        .hero-overlay {
+            background: linear-gradient(90deg, rgba(15, 23, 42, 0.88) 0%, rgba(15, 23, 42, 0.64) 48%, rgba(15, 23, 42, 0.38) 100%);
+        }
+        .hero-carousel-control:focus-visible,
+        .hero-carousel-dot:focus-visible {
+            outline: 2px solid white;
+            outline-offset: 3px;
+        }
+        @media (max-width: 640px) {
+            .hero-overlay {
+                background: rgba(15, 23, 42, 0.7);
+            }
+        }
+        @media (prefers-reduced-motion: reduce) {
+            .hero-slide {
+                transition: none;
+                transform: none;
+            }
+        }
+        .program-card {
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .program-card:hover {
+            transform: translateY(-4px);
+        }
+        .bike-spec-card {
+            min-height: 104px;
+            background: rgba(248, 250, 252, 0.9);
+            transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+        }
+        .bike-spec-card:hover {
+            transform: translateY(-2px);
+            border-color: #86efac;
+            box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
+        }
+        .bike-spec-image {
+            width: 4.5rem;
+            height: 4.5rem;
+            flex-shrink: 0;
+            padding: 0.3rem;
+            border-radius: 0.9rem;
+            background: white;
+        }
+        .bike-hotspot {
+            transition: transform 0.2s ease;
+        }
+        .bike-hotspot:hover,
+        .bike-hotspot:focus-within {
+            transform: scale(1.08);
+        }
+        .bike-hotspot-ring {
+            position: absolute;
+            inset: -0.25rem;
+            border-radius: 9999px;
+            background: rgba(34, 197, 94, 0.35);
+            animation: bike-pulse 2s infinite;
+            pointer-events: none;
+        }
+        .bike-hotspot-tooltip {
+            opacity: 0;
+            visibility: hidden;
+            transform: translate(-50%, 0.5rem);
+            transition: opacity 0.2s ease, transform 0.2s ease, visibility 0.2s ease;
+        }
+        .bike-hotspot:hover .bike-hotspot-tooltip,
+        .bike-hotspot:focus-within .bike-hotspot-tooltip {
+            opacity: 1;
+            visibility: visible;
+            transform: translate(-50%, 0);
+        }
+        .bike-feature-card {
+            transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+        }
+        .bike-feature-card:hover {
+            transform: translateY(-2px);
+            border-color: #86efac;
+            box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
+        }
+        .video-container {
+    max-width: 500px; 
+    width: 100%;
+    height: 300px;
+    margin: 0 auto; 
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+    border-radius: 12px;
+    overflow: hidden;
+    background-color: #000;
+    }
+
+    .video-container video {
+    width: 100%;
+    height: 100%;
+    display: block;
+    }
+        @keyframes bike-pulse {
+            0%, 100% { transform: scale(0.85); opacity: 0.7; }
+            50% { transform: scale(1.35); opacity: 0; }
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 font-sans antialiased flex flex-col min-h-screen">
+    <div class="site-slider" id="siteSlider">
+      <div class="site-page">
+
+    <header class="sticky top-0 z-50 glass-nav border-b border-slate-200/80 shadow-sm">
+        <div class="card-nav-container w-[92%] max-w-[800px] mx-auto py-3">
+            <nav id="card-nav" class="card-nav relative bg-white rounded-xl shadow-md" aria-label="Navegación principal">
+                <div class="card-nav-top absolute inset-x-0 top-0 h-[60px] flex items-center justify-between p-2 pl-4 z-[2]">
+                    <button type="button" id="card-nav-toggle" class="hamburger-menu order-2 md:order-none h-full w-10 flex flex-col items-center justify-center gap-[6px] cursor-pointer text-slate-900" onclick="toggleCardNav(this)" aria-label="Abrir menú" aria-expanded="false" aria-controls="card-nav-content">
+                        <span class="hamburger-line block w-[30px] h-[2px] bg-current"></span>
+                        <span class="hamburger-line block w-[30px] h-[2px] bg-current"></span>
+                    </button>
+
+                    <a href="#inicio" class="logo-container order-1 md:order-none md:absolute md:left-1/2 md:top-1/2 md:-translate-x-1/2 md:-translate-y-1/2">
+                        <img src="/img/Logoc.png" alt="Dirección de Movilidad Urbana Sustentable" class="h-10 sm:h-12 w-auto max-w-[30rem] object-contain">
+                    </a>
+
+                    
+                </div>
+
+                <div id="card-nav-content" class="card-nav-content absolute left-0 right-0 top-[60px] bottom-0 p-2 flex flex-col items-stretch gap-2 justify-start z-[1] md:flex-row md:items-end md:gap-3" aria-hidden="true" inert>
+                    <div class="nav-card flex flex-col gap-2 p-3 rounded-lg min-w-0 flex-1 min-h-[60px] bg-emerald-100 text-emerald-950">
+                        <div class="font-normal tracking-tight text-lg md:text-xl">Explorá</div>
+                        <div class="mt-auto flex flex-col gap-1 text-sm">
+                            <a href="#inicio" onclick="closeCardNav()" class="inline-flex items-center gap-1 hover:opacity-70 transition-opacity">↗ Inicio</a>
+                            <a href="#entrevistas" onclick="showSitePage(2); closeCardNav(); return false;" class="inline-flex items-center gap-1 hover:opacity-70 transition-opacity">↗ Novedades y entrevistas</a>
+                            <!-- <a href="#mision1" onclick="closeCardNav()" class="inline-flex items-center gap-1 hover:opacity-70 transition-opacity">↗ Institucional</a> -->
+                             <br>
+
+                            <br>
+                        </div>
+                    </div>
+                    <div class="nav-card flex flex-col gap-2 p-3 rounded-lg min-w-0 flex-1 min-h-[60px] bg-sky-100 text-sky-950">
+                        <div class="font-normal tracking-tight text-lg md:text-xl">Programas</div>
+                        <div class="mt-auto flex flex-col gap-1 text-sm">
+                            <a href="#content-vici" onclick="selectProgram('vici'); closeCardNav()" class="inline-flex items-center gap-1 hover:opacity-70 transition-opacity">↗ Vamos en Bici</a>
+                            <a href="#content-banco" onclick="selectProgram('banco'); closeCardNav()" class="inline-flex items-center gap-1 hover:opacity-70 transition-opacity">↗ Banco Solidario</a>
+                            <a href="#content-baja" onclick="selectProgram('baja'); closeCardNav()" class="inline-flex items-center gap-1 hover:opacity-70 transition-opacity">↗ Baja Sube</a>
+                        </div>
+                    </div>
+                    <div class="nav-card flex flex-col gap-2 p-3 rounded-lg min-w-0 flex-1 min-h-[60px] bg-slate-800 text-white">
+                        <div class="font-normal tracking-tight text-lg md:text-xl">Contacto</div>
+                        <div class="mt-auto flex flex-col gap-1 text-sm">
+                            <a href="#contacto" onclick="closeCardNav()" class="inline-flex items-center gap-1 hover:opacity-70 transition-opacity">↗ Ubicación y contacto</a>
+                            <a href="mailto:vamosenbici@catamarcacapital.gob.ar" onclick="closeCardNav()" class="inline-flex items-center gap-1 hover:opacity-70 transition-opacity">↗ Escribinos</a>
+                            <br>
+                        </div>
+                    </div>
+                </div>
+            </nav>
+        </div>
+    </header>
+
+    <section id="inicio" class="relative hero-gradient text-white py-20 lg:py-28 overflow-hidden">
+
+        <div id="hero-carousel" class="absolute inset-0" aria-label="Galería de imágenes destacadas">
+            <div class="hero-slide is-active" role="img" aria-label="Imagen destacada 1" style="background-image: url('galeria/IMG_7051.JPG');"></div>
+            <div class="hero-slide" role="img" aria-label="Imagen destacada 2" style="background-image: url('galeria/IMG_7062.JPG');"></div>
+             <div class="hero-slide" role="img" aria-label="Imagen destacada 3" style="background-image: url('galeria/img.jpeg');"></div>
+            <div class="hero-slide" role="img" aria-label="Imagen destacada 4" style="background-image: url('galeria/IMG_7120.JPG');"></div>
+            
+            
+            
+            <div class="hero-slide" aria-label="Video destacado 1"><video muted playsinline loop preload="metadata"><source src="videos/DJI_0383.MP4" type="video/mp4"></video></div>
+            <div class="hero-slide" aria-label="Video destacado 2"><video muted playsinline loop preload="metadata"><source src="videos/Programa baja y sube - entrada.mp4" type="video/mp4"></video></div>
+          
+        </div>
+        <div class="absolute inset-0 hero-overlay pointer-events-none"></div>
+        <div class="absolute inset-0 bg-[radial-gradient(circle_at_30%_30%,rgba(255,255,255,0.1),transparent)] pointer-events-none"></div>
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+            <div class="max-w-3xl">
+                <div class="inline-flex items-center space-x-2 bg-white/10 backdrop-blur-md px-3.5 py-1.5 rounded-full text-xs font-semibold text-emerald-300 border border-white/10 mb-6">
+                    <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                    <span>San Fernando del Valle de Catamarca</span>
+                </div>
+                <h1 class="text-3xl sm:text-5xl lg:text-6xl font-black tracking-tight leading-tight mb-6">
+                    Transformando la movilidad de nuestra ciudad
+                </h1>
+                <p class="text-base sm:text-xl text-slate-200 leading-relaxed font-normal mb-8">
+                    Promovemos el conocimiento, acceso e implementación de sistemas de transporte ecológicos, integrados y perdurables para el cuidado de nuestro medio ambiente.
+                </p>
+                <div class="flex flex-wrap gap-4">
+                    <a href="#programas" class="px-6 py-3.5 rounded-xl bg-white text-slate-900 font-bold hover:bg-slate-100 shadow-lg hover:shadow-xl transition-all flex items-center gap-2">
+                        <span>Explorar los 3 Programas</span>
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                    </a>
+                    <a href="#mision1" class="px-6 py-3.5 rounded-xl bg-slate-800/60 hover:bg-slate-800 text-white font-semibold border border-white/20 transition-all">
+                        Nuestras Funciones
+                    </a>
+                    <button type="button" onclick="showSitePage(2)" class="px-6 py-3.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold transition-all">
+                        Entrevistas y novedades <span aria-hidden="true">&rarr;</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+        <div class="absolute z-20 inset-x-0 bottom-6 flex items-center justify-between px-4 sm:px-6 lg:px-8 pointer-events-none">
+            <div id="hero-carousel-dots" class="flex flex-wrap gap-2 pointer-events-auto max-w-[55%]" aria-label="Seleccionar imagen"></div>
+            <div class="flex gap-2 pointer-events-auto">
+                <button type="button" class="hero-carousel-control w-10 h-10 rounded-full bg-slate-950/45 hover:bg-slate-950/70 border border-white/25 transition-colors flex items-center justify-center" aria-label="Imagen anterior" data-hero-direction="previous">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m15 19-7-7 7-7"/></svg>
+                </button>
+                <button type="button" class="hero-carousel-control w-10 h-10 rounded-full bg-slate-950/45 hover:bg-slate-950/70 border border-white/25 transition-colors flex items-center justify-center" aria-label="Imagen siguiente" data-hero-direction="next">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m9 5 7 7-7 7"/></svg>
+                </button>
+            </div>
+        </div>
+    </section>
+
+    <section id="mision1" class="py-16 bg-white border-b border-slate-100">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="grid grid-cols-1 md:grid-cols-12 gap-8 items-center">
+                <div class="md:col-span-5">
+                    <span class="text-xs font-bold tracking-widest text-brand-600 uppercase">Marco Institucional</span>
+                    <h2 class="text-2xl sm:text-3xl font-extrabold text-slate-900 mt-2 mb-4">
+                        Dirección de Movilidad Urbana Sustentable
+                    </h2>
+                    <p class="text-slate-600 leading-relaxed text-sm sm:text-base">
+                        Es fundamental impulsar acciones que permitan a los vecinos y vecinas acceder a la información sobre nuevas metodologías y sistemas de transporte urbano sustentable, promoviendo su uso para cuidar y proteger nuestro medio ambiente.
+                    </p>
+                </div>
+                <div class="md:col-span-7 grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div class="p-5 rounded-2xl bg-slate-50 border border-slate-200/60 shadow-sm">
+                        <div class="w-10 h-10 rounded-xl bg-brand-100 text-brand-700 flex items-center justify-center mb-3">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/></svg>
+                        </div>
+                        <h3 class="font-bold text-slate-900 mb-1">Concientización e Impulso</h3>
+                        <p class="text-xs text-slate-600">Crear conciencia e implementar medios de transporte que se sirvan de energías alternativas.</p>
+                    </div>
+                    <div class="p-5 rounded-2xl bg-slate-50 border border-slate-200/60 shadow-sm">
+                        <div class="w-10 h-10 rounded-xl bg-sky-100 text-sky-700 flex items-center justify-center mb-3">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 002 2h1.5a2.5 2.5 0 002.5-2.5V11.085M16 5.5a2.5 2.5 0 00-2.5-2.5h-1a2.5 2.5 0 00-2.5 2.5v.19"/></svg>
+                        </div>
+                        <h3 class="font-bold text-slate-900 mb-1">Acceso Integrado</h3>
+                        <p class="text-xs text-slate-600">Garantizar el acceso equitativo de la población a medios de transporte ecológicos e integrados.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section id="programas" class="py-16 bg-slate-100 flex-grow">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="text-center max-w-2xl mx-auto mb-10">
+                <span class="text-xs font-bold tracking-widest text-brand-600 uppercase">Iniciativas Activas</span>
+                <h2 class="text-3xl font-extrabold text-slate-900 mt-1">Programas de la Dirección</h2>
+                <p class="text-slate-600 text-sm mt-2">Selecciona un programa para explorar sus detalles, beneficios y funcionamiento.</p>
+            </div>
+
+            <!-- Program Selector Tabs -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-10">
+                <!-- Tab 1 -->
+                <button onclick="selectProgram('vici')" id="btn-vici" class="program-card border-glow p-5 rounded-2xl bg-white border-2  shadow-md text-left focus:outline-none transition-all">
+                    <div class="flex items-center space-x-4">
+                        <div id="icon-vici" class="p-3 rounded-xl  text-white">
+                            <img src="/img/logovb.png" alt="Vamos en Bici" class="w-8 h-8 object-contain">
+                        </div>
+                        <div>
+                            <span class="text-xs font-bold  tracking-wider uppercase block">Programa 01</span>
+                            <h3 class="font-bold text-lg text-slate-900">Vamos en Bici</h3>
+                        </div>
+                    </div>
+                </button>
+
+                <!-- Tab 2 -->
+                <button onclick="selectProgram('banco')" id="btn-banco" class="program-card border-glow p-5 rounded-2xl bg-white border-2 border-transparent shadow-sm hover:border-slate-300 text-left focus:outline-none transition-all">
+                    <div class="flex items-center space-x-4">
+                        <div id="icon-banco" class="p-3 rounded-xl bg-slate-100 text-slate-600">
+                            <img src="/img/banco.jpeg" alt="Banco Solidario" class="w-8 h-8 object-contain">
+                        </div>
+                        <div>
+                            <span class="text-xs font-bold text-slate-500 tracking-wider uppercase block">Programa 02</span>
+                            <h3 class="font-bold text-lg text-slate-900">Banco Solidario</h3>
+                        </div>
+                    </div>
+                </button>
+
+                <!-- Tab 3 -->
+                <button onclick="selectProgram('baja')" id="btn-baja" class="program-card border-glow p-5 rounded-2xl bg-white border-2 border-transparent shadow-sm hover:border-slate-300 text-left focus:outline-none transition-all">
+                    <div class="flex items-center space-x-4">
+                        <div id="icon-baja" class="p-3 rounded-xl bg-slate-100 text-slate-600">
+                            <img src="/img/baja.png" alt="Baja y Sube" class="w-8 h-8 object-contain">
+                        </div>
+                        <div>
+                            <span class="text-xs font-bold text-slate-500 tracking-wider uppercase block">Programa 03</span>
+                            <h3 class="font-bold text-lg text-slate-900">Baja y Sube</h3>
+                        </div>
+                    </div>
+                </button>
+            </div>
+
+            <!-- Program 1 Content: Vamos en Bici -->
+            <div id="content-vici" class="bg-white rounded-3xl p-6 sm:p-10 shadow-lg border border-slate-200/80">
+                <div class="grid grid-cols-1 lg:grid-cols-5 gap-10 items-center">
+                    <div class="lg:col-span-3">
+                        <img src="/img/logovb.png" alt="Vamos en Bici" class="h-12 w-auto object-contain object-left mb-5">
+                        <h3 class="text-2xl sm:text-3xl font-extrabold text-slate-900 mb-4">Vamos en Bici</h3>
+                        <p class="text-slate-600 text-base leading-relaxed mb-6">
+                            Conocé nuestro sistema automatizado de alquiler de bicicletas públicas. Es una opción de transporte accesible y saludable para moverte por San Fernando del Valle de Catamarca.
+                        </p>
+                        <div class="flex flex-wrap gap-3 mb-6">
+                            <a href="https://apps.apple.com/us/app/vamos-en-bici/id6445926758" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-2 rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-bold text-white hover:bg-slate-700 transition-colors">
+                                App Store
+                            </a>
+                            <a href="https://play.google.com/store/apps/details?id=com.catamarca.vamosenbici" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-2 rounded-lg bg-brand-600 px-4 py-2.5 text-sm font-bold text-white hover:bg-brand-700 transition-colors">
+                                Google Play
+                            </a>
+                        </div>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div class="p-4 rounded-xl bg-brand-50 border border-brand-100">
+                                <h4 class="font-bold text-slate-900 mb-1">Encontrá una estación</h4>
+                                <p class="text-xs text-slate-600">Consultá la ubicación y disponibilidad de bicicletas desde la app.</p>
+                            </div>
+                            <div class="p-4 rounded-xl bg-slate-50 border border-slate-100">
+                                <h4 class="font-bold text-slate-900 mb-1">Servicio gratuito</h4>
+                                <p class="text-xs text-slate-600">No necesitás un medio de pago para utilizar las bicicletas.</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="lg:col-span-2 flex justify-center">
+                        <img src="https://vamosenbici.smod.io/assets/img/bike_hero.svg" alt="Bicicleta del sistema Vamos en Bici" class="w-full max-w-sm h-56 object-contain">
+                    </div>
+                </div>
+                <br>
+
+                <div class="mt-12 pt-8 border-t border-slate-100 rounded-3xl bg-slate-50/70 px-4 sm:px-6 pb-8">
+                    <div class="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-2 mb-5">
+                        <div>
+                            <span class="text-xs font-bold tracking-widest text-brand-600 uppercase">Empezá a pedalear</span>
+                            <h4 class="text-xl font-extrabold text-slate-900 mt-1">¿Cómo funciona?</h4>
+                        </div>
+                        <p class="text-sm text-slate-500">En solo 4 pasos.</p>
+                    </div>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+                        <div class="p-4 rounded-xl bg-slate-50 border border-slate-100"><span class="text-brand-600 font-black text-lg">01</span><h5 class="font-bold text-slate-900 mt-2">Registrate</h5><p class="text-xs text-slate-600 mt-1">Validá tu teléfono y completá tus datos.</p></div>
+                        <div class="p-4 rounded-xl bg-slate-50 border border-slate-100"><span class="text-brand-600 font-black text-lg">02</span><h5 class="font-bold text-slate-900 mt-2">Buscá una bici</h5><p class="text-xs text-slate-600 mt-1">Usá el mapa para encontrar una estación.</p></div>
+                        <div class="p-4 rounded-xl bg-slate-50 border border-slate-100"><span class="text-brand-600 font-black text-lg">03</span><h5 class="font-bold text-slate-900 mt-2">Desbloqueala</h5><p class="text-xs text-slate-600 mt-1">Retirá la bicicleta desde la aplicación.</p></div>
+                        <div class="p-4 rounded-xl bg-slate-50 border border-slate-100"><span class="text-brand-600 font-black text-lg">04</span><h5 class="font-bold text-slate-900 mt-2">Devolvela</h5><p class="text-xs text-slate-600 mt-1">Terminá el viaje en cualquier estación habilitada.</p></div>
+                    </div>
+                </div>
+
+                <div class="mt-10 grid grid-cols-1 lg:grid-cols-2 gap-8 items-center">
+                    
+                    <div class="rounded-2xl overflow-hidden border border-slate-100 bg-slate-50">
+                        <img src="https://vamosenbici.smod.io/assets/img/app.png" alt="Pantallas de la aplicación Vamos en Bici" class="w-full h-56 object-cover object-top">
+                    </div>
+                </div>
+
+                <div class="pt-8 border-t border-slate-100">
+                    <div class="text-center max-w-2xl mx-auto mb-10">
+                        <span class="text-xs font-extrabold tracking-widest text-brand-600 uppercase bg-brand-50 px-3 py-1 rounded-full border border-brand-100 inline-block mb-2">Diseñada para pedalear</span>
+                        <h4 class="text-2xl sm:text-3xl font-black text-slate-900">Anatomía de la bicicleta</h4>
+                        <p class="text-xs sm:text-sm text-slate-600 mt-1">Pasá el cursor o enfocá los puntos destacados para conocer sus componentes.</p>
+                    </div>
+
+                    <div class="relative bg-gradient-to-b from-slate-50 to-emerald-50/40 rounded-3xl p-5 sm:p-10 border border-slate-200/80 overflow-hidden shadow-inner">
+                        <div class="relative max-w-2xl mx-auto min-h-[380px] flex items-center justify-center">
+                            <img src="/bici/bici/bicicleta.png" alt="Bicicleta del sistema Vamos en Bici" class="w-full max-w-md h-auto object-contain drop-shadow-2xl z-10 py-4">
+
+                            <div class="bike-hotspot absolute top-[7%] left-[41%] z-20">
+                                <div class="relative">
+                                    <span class="bike-hotspot-ring"></span>
+                                    <button type="button" aria-label="Ver detalle del timbre" class="relative w-8 h-8 rounded-full bg-brand-600 text-white font-bold text-sm flex items-center justify-center shadow-lg border-2 border-white">+</button>
+                                </div>
+                                <div class="bike-hotspot-tooltip absolute bottom-full left-1/2 mb-3 w-48 bg-slate-900 text-white p-3 rounded-2xl shadow-xl text-center pointer-events-none z-30">
+                                    <span class="font-extrabold text-xs block text-emerald-400">Timbre integrado</span><span class="text-[11px] text-slate-300 block mt-0.5">Ubicado en el manubrio.</span>
+                                </div>
+                            </div>
+                            <div class="bike-hotspot absolute top-[28%] right-[32%] z-20">
+                                <div class="relative">
+                                    <span class="bike-hotspot-ring"></span>
+                                    <button type="button" aria-label="Ver detalle del canasto" class="relative w-8 h-8 rounded-full bg-brand-600 text-white font-bold text-sm flex items-center justify-center shadow-lg border-2 border-white">+</button>
+                                </div>
+                                <div class="bike-hotspot-tooltip absolute bottom-full left-1/2 mb-3 w-52 bg-slate-900 text-white p-3 rounded-2xl shadow-xl text-center pointer-events-none z-30">
+                                    <span class="font-extrabold text-xs block text-emerald-400">Canasto personalizado</span><span class="text-[11px] text-slate-300 block mt-0.5">Con panel solar integrado.</span>
+                                </div>
+                            </div>
+                            <div class="bike-hotspot absolute top-[52%] left-[48%] z-20">
+                                <div class="relative">
+                                    <span class="bike-hotspot-ring"></span>
+                                    <button type="button" aria-label="Ver detalle del cuadro" class="relative w-8 h-8 rounded-full bg-brand-600 text-white font-bold text-sm flex items-center justify-center shadow-lg border-2 border-white">+</button>
+                                </div>
+                                <div class="bike-hotspot-tooltip absolute bottom-full left-1/2 mb-3 w-48 bg-slate-900 text-white p-3 rounded-2xl shadow-xl text-center pointer-events-none z-30">
+                                    <span class="font-extrabold text-xs block text-emerald-400">Cuadro de aluminio</span><span class="text-[11px] text-slate-300 block mt-0.5">Resistente y de bajo peso.</span>
+                                </div>
+                            </div>
+                            <div class="bike-hotspot absolute top-[45%] left-[30%] z-20">
+                                <div class="relative">
+                                    <span class="bike-hotspot-ring"></span>
+                                    <button type="button" aria-label="Ver detalle de la caja de seguridad" class="relative w-8 h-8 rounded-full bg-brand-600 text-white font-bold text-sm flex items-center justify-center shadow-lg border-2 border-white">+</button>
+                                </div>
+                                <div class="bike-hotspot-tooltip absolute top-full left-1/2 mt-3 w-52 bg-slate-900 text-white p-3 rounded-2xl shadow-xl text-center pointer-events-none z-30">
+                                    <span class="font-extrabold text-xs block text-emerald-400">Caja de seguridad</span><span class="text-[11px] text-slate-300 block mt-0.5">Candado electrónico con rastreo.</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="mt-8 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                            <div class="bike-feature-card border-glow p-3.5 bg-white rounded-2xl border border-slate-200/80 flex items-center gap-3"><img src="/bici/bike_ti.png" alt="Timbre integrado" class="w-12 h-12 object-contain shrink-0"><div><h5 class="font-bold text-xs text-slate-900">Timbre integrado</h5><p class="text-[11px] text-slate-500">Incorporado en manubrio.</p></div></div>
+                            <div class="bike-feature-card border-glow p-3.5 bg-white rounded-2xl border border-slate-200/80 flex items-center gap-3"><img src="/bici/bike_cp.png" alt="Canasto con panel solar" class="w-12 h-12 object-contain shrink-0"><div><h5 class="font-bold text-xs text-slate-900">Canasto y panel</h5><p class="text-[11px] text-slate-500">Carga solar inteligente.</p></div></div>
+                            <div class="bike-feature-card border-glow p-3.5 bg-white rounded-2xl border border-slate-200/80 flex items-center gap-3"><img src="/bici/bike_lf.png" alt="Luz frontal" class="w-12 h-12 object-contain shrink-0"><div><h5 class="font-bold text-xs text-slate-900">Luz frontal</h5><p class="text-[11px] text-slate-500">Alimentada por dínamo.</p></div></div>
+                            <div class="bike-feature-card border-glow p-3.5 bg-white rounded-2xl border border-slate-200/80 flex items-center gap-3"><img src="/bici/bike_cb.png" alt="Caja de seguridad" class="w-12 h-12 object-contain shrink-0"><div><h5 class="font-bold text-xs text-slate-900">Seguridad</h5><p class="text-[11px] text-slate-500">Rastreo en tiempo real.</p></div></div>
+                        </div>
+                    </div>
+
+                    <section class="mt-10 pt-8 border-t border-slate-100" aria-labelledby="vamos-bici-videos-title">
+                        <h4 id="vamos-bici-videos-title" class="text-sm font-bold tracking-wider text-slate-400 uppercase mb-4">Videos explicativos</h4>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                            <article class="bike-video-card overflow-hidden rounded-2xl border border-slate-200 bg-white md:col-span-2">
+                                <button type="button" class="news-reel-trigger relative block aspect-video w-full overflow-hidden bg-slate-950 text-left" data-video="videos/COMO%20FUNCIONA%20ANDREA%20NOTARIO%20VAMOS%20EN%20BICI%20X%20FM.MP4" data-title="Cómo funciona Vamos en Bici" data-category="Videos explicativos" aria-label="Reproducir Cómo funciona Vamos en Bici"><img src="galeria/a1.jpg" alt="Cómo funciona Vamos en Bici" class="absolute inset-0 h-full w-full object-cover"><span class="absolute inset-0 z-10 flex items-center justify-center"><span class="flex h-14 w-14 items-center justify-center rounded-full bg-white/20 text-white shadow-lg backdrop-blur-md">&#9654;</span></span></button>
+                                <div class="p-4">
+                                    <h5 class="font-bold text-slate-900">Cómo funciona Vamos en Bici</h5>
+                                    <p class="mt-1 text-sm text-slate-600">Andrea Notario explica el funcionamiento del programa.</p>
+                                </div>
+                            </article>
+                            <article class="bike-video-card overflow-hidden rounded-2xl border border-slate-200 bg-white">
+                                <button type="button" class="news-reel-trigger relative block aspect-video w-full overflow-hidden bg-slate-950 text-left" data-video="videos/01%20-%20ESTACIONES%20INTERMEDIAS_VAMOS%20EN%20BICI_2.MP4" data-title="Estaciones intermedias" data-category="Videos explicativos" aria-label="Reproducir Estaciones intermedias"><img src="galeria/i.jpg" alt="Estaciones intermedias" class="absolute inset-0 h-full w-full object-cover"><span class="absolute inset-0 z-10 flex items-center justify-center"><span class="flex h-12 w-12 items-center justify-center rounded-full bg-white/20 text-white shadow-lg backdrop-blur-md">&#9654;</span></span></button>
+                                <div class="p-4">
+                                    <h5 class="font-bold text-slate-900">Estaciones intermedias</h5>
+                                    <p class="mt-1 text-sm text-slate-600">Conocé las estaciones del programa Vamos en Bici.</p>
+                                </div>
+                            </article>
+
+                            <article class="bike-video-card overflow-hidden rounded-2xl border border-slate-200 bg-white">
+                                <button type="button" class="news-reel-trigger relative block aspect-video w-full overflow-hidden bg-slate-950 text-left" data-video="videos/VAMOS%20EN%20BICI%20LLEGO%20A%20LA%20CAPITAL%20X%20FM.MP4" data-title="Vamos en Bici llegó a la Capital" data-category="Videos explicativos" aria-label="Reproducir Vamos en Bici llegó a la Capital"><img src="galeria/3.jpg" alt="Vamos en Bici llegó a la Capital" class="absolute inset-0 h-full w-full object-cover"><span class="absolute inset-0 z-10 flex items-center justify-center"><span class="flex h-12 w-12 items-center justify-center rounded-full bg-white/20 text-white shadow-lg backdrop-blur-md">&#9654;</span></span></button>
+                                <div class="p-4">
+                                    <h5 class="font-bold text-slate-900">Vamos en Bici llegó a la Capital</h5>
+                                    <p class="mt-1 text-sm text-slate-600">Una presentación del programa en la Capital.</p>
+                                </div>
+                            </article>
+
+                            <article class="bike-video-card overflow-hidden rounded-2xl border border-slate-200 bg-white">
+                                <button type="button" class="news-reel-trigger relative block aspect-video w-full overflow-hidden bg-slate-950 text-left" data-video="videos/AHORA%20TODOS%20VAMOS%20EN%20BICI%20X%20FM.MP4" data-title="Ahora todos vamos en Bici" data-category="Videos explicativos" aria-label="Reproducir Ahora todos vamos en Bici"><img src="galeria/a2.jpg" alt="Ahora todos vamos en Bici" class="absolute inset-0 h-full w-full object-cover"><span class="absolute inset-0 z-10 flex items-center justify-center"><span class="flex h-12 w-12 items-center justify-center rounded-full bg-white/20 text-white shadow-lg backdrop-blur-md">&#9654;</span></span></button>
+                                <div class="p-4">
+                                    <h5 class="font-bold text-slate-900">Ahora todos vamos en Bici</h5>
+                                    <p class="mt-1 text-sm text-slate-600">Conocé más sobre la propuesta Vamos en Bici.</p>
+                                </div>
+                            </article>
+
+                            
+                        </div>
+                    </section>
+
+                    <section class="mt-8" aria-labelledby="bike-map-title">
+                        <div class="mb-4">
+                            <h4 id="bike-map-title" class="text-sm font-bold tracking-wider text-slate-400 uppercase">Estaciones de Vamos en Bici</h4>
+                            <p class="mt-1 text-sm text-slate-600">Buscá una estación por nombre, filtrá por tipo o seleccioná un punto en el mapa.</p>
+                        </div>
+                        <div class="bike-map-layout">
+                            <div class="bike-map-panel"><div id="bike-map" aria-label="Mapa de estaciones de Vamos en Bici"></div></div>
+                            <div class="bike-map-side">
+                                <div class="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
+                                    <div class="mb-2 flex items-center justify-between gap-2"><h5 class="font-extrabold text-slate-900">Ubicaciones</h5><span id="bike-map-count" class="text-xs text-slate-500">17 resultados</span></div>
+                                    <input id="bike-map-search" class="bike-map-search" type="search" placeholder="Buscar ubicación..." autocomplete="off" aria-label="Buscar estación">
+                                    <div class="bike-map-filters" role="group" aria-label="Filtrar estaciones">
+                                        <button type="button" class="bike-map-filter active" data-bike-filter="todos">Todas</button>
+                                        <button type="button" class="bike-map-filter" data-bike-filter="Estación Container">Container</button>
+                                        <button type="button" class="bike-map-filter" data-bike-filter="Estación Intermedia">Intermedia</button>
+                                        <button type="button" class="bike-map-filter" data-bike-filter="Estación Punto GIRO">GIRO</button>
+                                    </div>
+                                    <div id="bike-map-cards" class="bike-map-cards"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
+                    <div class="mt-8 rounded-3xl bg-gradient-to-r from-sky-50 to-blue-50 border border-sky-100 p-6 flex flex-col sm:flex-row items-center justify-between gap-4">
+                        
+                        <div>
+                            <h4 class="font-extrabold text-slate-900 text-base">¿Dónde encontrar las estaciones?</h4>
+                            <p class="text-xs text-slate-600 mt-1">Consultá la app para ver el mapa de disponibilidad en tiempo real.</p>
+                            
+                        </div>
+                        <div class="text-left sm:text-right text-xs text-slate-700 bg-white/80 px-4 py-3 rounded-2xl border border-sky-100 w-full sm:w-auto">
+                            <span>Escribinos: </span><a href="mailto:vamosenbici.1@gmail.com" class="font-bold text-catamarca-blue hover:underline">vamosenbici.1@gmail.com</a>
+                            <span class="block mt-0.5">Teléfono: <a href="tel:+5493834227881" class="font-bold text-slate-900 hover:underline">+54 9 3834 227881</a></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Program 2 Content: Banco Solidario -->
+            <div id="content-banco" class="hidden bg-white rounded-3xl p-6 sm:p-10 shadow-lg border border-slate-200/80">
+                <div class="max-w-4xl">
+                    <div class="inline-flex items-center space-x-2 bg-amber-50 text-amber-700 px-3 py-1 rounded-full text-xs font-bold mb-4">
+                        <img src="/img/banco.jpeg" alt="Vamos en Bici" class="h-12 w-auto object-contain object-left mb-5">
+                    </div>
+                    <h3 class="text-2xl sm:text-3xl font-extrabold text-slate-900 mb-4">Banco Solidario de Bicicletas</h3>
+                    <p class="text-slate-600 text-base leading-relaxed mb-8">
+                        Iniciativa municipal orientada a recuperar, restaurar y dar una segunda vida a bicicletas en desuso para destinarlas a personas que las necesiten. Promueve una movilidad sustentable, inclusiva y la reutilización solidaria de recursos.
+                    </p>
+
+                    <!-- 3 Steps -->
+                    <h4 class="text-sm font-bold tracking-wider text-slate-400 uppercase mb-4">Proceso en 3 Etapas</h4>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                        <div class="p-5 rounded-2xl bg-amber-50/50 border border-amber-100 relative">
+                            <span class="text-2xl font-black text-amber-500/40 absolute top-4 right-4">01</span>
+                            <h5 class="font-bold text-slate-900 mb-2">Donación y Recepción</h5>
+                            <p class="text-xs text-slate-600">Recepción y recolección de bicicletas donadas por vecinos y vecinas de la Capital.</p>
+                        </div>
+                        <div class="p-5 rounded-2xl bg-amber-50/50 border border-amber-100 relative">
+                            <span class="text-2xl font-black text-amber-500/40 absolute top-4 right-4">02</span>
+                            <h5 class="font-bold text-slate-900 mb-2">Restauración</h5>
+                            <p class="text-xs text-slate-600">Revisión integral, reparación y puesta en condiciones óptimas de seguridad.</p>
+                        </div>
+                        <div class="p-5 rounded-2xl bg-amber-50/50 border border-amber-100 relative">
+                            <span class="text-2xl font-black text-amber-500/40 absolute top-4 right-4">03</span>
+                            <h5 class="font-bold text-slate-900 mb-2">Adjudicación</h5>
+                            <p class="text-xs text-slate-600">Entrega a beneficiarios mediante un proceso transparente de inscripción y evaluación.</p>
+                        </div>
+                    </div>
+
+                    <!-- Galería del Banco Solidario -->
+                    <h4 class="text-sm font-bold tracking-wider text-slate-400 uppercase mb-4">Galería de actividades</h4>
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        <button type="button" class="banco-gallery-item overflow-hidden rounded-2xl aspect-square focus:outline-none focus:ring-4 focus:ring-amber-300" aria-label="Ver foto de actividad del Banco Solidario">
+                            <img src="galeria/IMG_7051.JPG" alt="Actividad del Banco Solidario de Bicicletas" class="w-full h-full object-cover transition duration-300 hover:scale-110">
+                        </button>
+                        <button type="button" class="banco-gallery-item overflow-hidden rounded-2xl aspect-square focus:outline-none focus:ring-4 focus:ring-amber-300" aria-label="Ver foto de restauración de bicicletas">
+                            <img src="galeria/IMG_7070.JPG" alt="Restauración de bicicletas" class="w-full h-full object-cover transition duration-300 hover:scale-110">
+                        </button>
+                        <button type="button" class="banco-gallery-item overflow-hidden rounded-2xl aspect-square focus:outline-none focus:ring-4 focus:ring-amber-300" aria-label="Ver foto de entrega de bicicletas">
+                            <img src="galeria/IMG_7120.JPG" alt="Entrega de bicicletas" class="w-full h-full object-cover transition duration-300 hover:scale-110">
+                        </button>
+                        <button type="button" class="banco-gallery-item overflow-hidden rounded-2xl aspect-square focus:outline-none focus:ring-4 focus:ring-amber-300" aria-label="Ver foto del Banco Solidario">
+                            <img src="galeria/img.jpeg" alt="Banco Solidario de Bicicletas" class="w-full h-full object-cover transition duration-300 hover:scale-110">
+                        </button>
+                         <button type="button" class="banco-gallery-item overflow-hidden rounded-2xl aspect-square focus:outline-none focus:ring-4 focus:ring-amber-300" aria-label="Ver foto del Banco Solidario">
+                            <img src="galeria/IMG_7076.JPG" alt="Banco Solidario de Bicicletas" class="w-full h-full object-cover transition duration-300 hover:scale-110">
+                        </button>
+                         <button type="button" class="banco-gallery-item overflow-hidden rounded-2xl aspect-square focus:outline-none focus:ring-4 focus:ring-amber-300" aria-label="Ver foto del Banco Solidario">
+                            <img src="galeria/IMG_7062.JPG" alt="Banco Solidario de Bicicletas" class="w-full h-full object-cover transition duration-300 hover:scale-110">
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Program 3 Content: Baja y Sube -->
+            <div id="content-baja" class="hidden bg-white rounded-3xl p-6 sm:p-10 shadow-lg border border-slate-200/80">
+                <div class="max-w-4xl">
+                    <div class="inline-flex items-center space-x-2 bg-sky-50 text-sky-700 px-3 py-1 rounded-full text-xs font-bold mb-4">
+                        <img src="/img/baja.png" alt="Vamos en Bici" class="h-12 w-auto object-contain object-left mb-5">
+                    </div>
+                    <h3 class="text-2xl sm:text-3xl font-extrabold text-slate-900 mb-4">Baja y Sube</h3>
+                    <p class="text-slate-600 text-base leading-relaxed mb-6">
+                        Garantiza un entorno seguro y optimiza el tránsito en el microcentro durante los horarios escolares. La propuesta resuelve la congestión vehicular e imprevistos de estacionamiento mediante el sistema interactivo de <strong>«Fila Activa»</strong>.
+                    </p>
+
+                    <!-- Active Row Explanation -->
+                    <div class="p-5 rounded-2xl bg-sky-50 border border-sky-100 mb-8">
+                        <h4 class="font-bold text-sky-900 mb-2 flex items-center gap-2">
+                            <svg class="w-5 h-5 text-sky-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                            ¿Cómo funciona la «Fila Activa»?
+                        </h4>
+                        <p class="text-xs sm:text-sm text-sky-800 leading-relaxed">
+                            Agentes de tránsito y voluntarios equipados con chalecos refractivos asisten a los niños con sus mochilas y los acompañan hasta la puerta de la escuela. Los conductores se detienen solo unos segundos sin necesidad de estacionar, previniendo maniobras de riesgo.
+                        </p>
+                    </div>
+
+                    <!-- School Timetables Table -->
+                    <h4 class="text-sm font-bold tracking-wider text-slate-400 uppercase mb-4">Escuelas Activas y Horarios</h4>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div class="p-4 rounded-xl border border-slate-200 bg-slate-50">
+                            <h5 class="font-extrabold text-slate-900">Escuela Senet</h5>
+                            <div class="mt-2 text-xs text-slate-600 space-y-1">
+                                <p><strong class="text-slate-800">Entrada:</strong> 07:10 h</p>
+                                <p><strong class="text-slate-800">Salida (Mar-Vie):</strong> 11:50 h / 12:20 h</p>
+                            </div>
+                        </div>
+                        <div class="p-4 rounded-xl border border-slate-200 bg-slate-50">
+                            <h5 class="font-extrabold text-slate-900">Escuela Hood</h5>
+                            <div class="mt-2 text-xs text-slate-600 space-y-1">
+                                <p><strong class="text-slate-800">Entrada:</strong> 07:10 h</p>
+                            </div>
+                        </div>
+                        <div class="p-4 rounded-xl border border-slate-200 bg-slate-50">
+                            <h5 class="font-extrabold text-slate-900">Escuela Sarmiento Moreno</h5>
+                            <div class="mt-2 text-xs text-slate-600 space-y-1">
+                                <p><strong class="text-slate-800">Entrada:</strong> 07:50 h</p>
+                            </div>
+                        </div>
+                        <div class="p-4 rounded-xl border border-slate-200 bg-slate-50">
+                            <h5 class="font-extrabold text-slate-900">Escuela PIA</h5>
+                            <div class="mt-2 text-xs text-slate-600 space-y-1">
+                                <p><strong class="text-slate-800">Entrada:</strong> 07:50 h</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Videos and downloadable material -->
+                    <section class="mt-10 pt-8 border-t border-slate-100" aria-labelledby="baja-videos-title">
+                        <h4 id="baja-videos-title" class="text-sm font-bold tracking-wider text-slate-400 uppercase mb-4">Videos explicativos</h4>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                            <article class="overflow-hidden rounded-2xl border border-slate-200 bg-slate-50">
+                                <video class="w-full aspect-video bg-slate-900" controls preload="metadata">
+                                    <source src="videos/Programa%20baja%20y%20sube%20-%20entrada.mp4" type="video/mp4">
+                                    Tu navegador no admite la reproducción de videos.
+                                </video>
+                                <div class="p-4">
+                                    <h5 class="font-bold text-slate-900">Baja Sube</h5>
+                                    <p class="mt-1 text-sm text-slate-600">Conocé cómo se organiza la llegada de los estudiantes.</p>
+                                </div>
+                            </article>
+
+                            <article class="overflow-hidden rounded-2xl border border-slate-200 bg-slate-50">
+                                <video class="w-full aspect-video bg-slate-900" controls preload="metadata">
+                                    <source src="videos/Video%20de%20WhatsApp%202025-03-13%20a%20las%2008.38.34_b22f45fa.mp4" type="video/mp4">
+                                    Tu navegador no admite la reproducción de videos.
+                                </video>
+                                <div class="p-4">
+                                    <h5 class="font-bold text-slate-900">Como Identificar un Voluntario</h5>
+                                    <p class="mt-1 text-sm text-slate-600">Mirá nuestra explicacion sobre la identificacion de un voluntario.</p>
+                                </div>
+                            </article>
+
+                           <!-- <article class="overflow-hidden rounded-2xl border border-slate-200 bg-slate-50 md:col-span-2">
+                                <video class="w-full aspect-video bg-slate-900" controls preload="metadata">
+                                    <source src="videos/DJI_0383.MP4" type="video/mp4">
+                                    Tu navegador no admite la reproducción de videos.
+                                </video>
+                                <div class="p-4">
+                                    <h5 class="font-bold text-slate-900">El programa desde otra perspectiva</h5>
+                                    <p class="mt-1 text-sm text-slate-600">Vista general del operativo Baja y Sube.</p>
+                                </div>
+                            </article>-->
+                        </div>
+                    </section>
+
+                    <section class="mt-10" aria-labelledby="baja-material-title">
+                        <h4 id="baja-material-title" class="text-sm font-bold tracking-wider text-slate-400 uppercase mb-4">Material para descargar</h4>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <a href="docs/MANUAL%20INSTRUCTIVO_BAJA%20Y%20SUBE_OCTUBRE%2024.pdf" target="_blank" rel="noopener noreferrer"
+                               class="group flex items-center gap-4 p-4 rounded-2xl border border-slate-200 bg-white hover:border-sky-300 hover:bg-sky-50 transition-colors">
+                                <div class="shrink-0 p-3 rounded-xl bg-red-50 text-red-600">
+                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 16v-8m0 8l-3-3m3 3l3-3M5 20h14a1 1 0 001-1v-3M5 16v3a1 1 0 001 1z"/></svg>
+                                </div>
+                                <div>
+                                    <h5 class="font-bold text-slate-900 group-hover:text-sky-800">Manual instructivo</h5>
+                                    <p class="text-xs text-slate-500">PDF · Baja y Sube</p>
+                                </div>
+                            </a>
+
+                            <a href="docs/afiche_ByS%20%281%29.pdf" target="_blank" rel="noopener noreferrer"
+                               class="group flex items-center gap-4 p-4 rounded-2xl border border-slate-200 bg-white hover:border-sky-300 hover:bg-sky-50 transition-colors">
+                                <div class="shrink-0 p-3 rounded-xl bg-sky-50 text-sky-600">
+                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 16v-8m0 8l-3-3m3 3l3-3M5 20h14a1 1 0 001-1v-3M5 16v3a1 1 0 001 1z"/></svg>
+                                </div>
+                                <div>
+                                    <h5 class="font-bold text-slate-900 group-hover:text-sky-800">Afiche del programa</h5>
+                                    <p class="text-xs text-slate-500">PDF · Material informativo</p>
+                                </div>
+                            </a>
+                        </div>
+                    </section>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <footer id="contacto" class="bg-slate-900 text-slate-400 py-12 border-t border-slate-800">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mb-8">
+                <div>
+                    <h4 class="text-white font-bold text-base mb-3">Movilidad Urbana Sustentable</h4>
+                    <p class="text-xs leading-relaxed text-slate-400">
+                        Municipalidad de San Fernando del Valle de Catamarca. Trabajando juntos por un medio ambiente sano, seguro y equilibrado.
+                    </p>
+                </div>
+                <div>
+                    <h4 class="text-white font-bold text-base mb-3">Programas Activos</h4>
+                    <ul class="text-xs space-y-2">
+                        <li><a href="#programas" onclick="selectProgram('vici')" class="hover:text-white transition-colors">Vamos en Bici</a></li>
+                        <li><a href="#programas" onclick="selectProgram('banco')" class="hover:text-white transition-colors">Banco Solidario de Bicicletas</a></li>
+                        <li><a href="#programas" onclick="selectProgram('baja')" class="hover:text-white transition-colors">Baja y Sube</a></li>
+                    </ul>
+                </div>
+                
+                <div>
+                    <h4 class="text-white font-bold text-base mb-3">Ubicación</h4>
+                    <p class="text-xs leading-relaxed text-slate-400">
+                       San Fernando del Valle de Catamarca
+                    </p>
+                    <br>
+                    <h4 class="text-white font-bold text-base mb-3">Contacto</h4>
+                    <p class="text-xs leading-relaxed">
+                         <a href="https://www.instagram.com/vamosenbici.cta?stkn=eTl6ZWFoenFtcm4y" class="logo-container "> Instagram
+                        
+                    </a><br>
+                        
+                    </p>
+                    
+                    <span class="text-xs leading-relaxed text-slate-400"> Movilidad Urbana Sustentable Teléfono: <a href="tel:+5493834582043" >+54 9 3834582043</a></span>
+                    
+                    <br>
+                    <span class="text-xs leading-relaxed text-slate-400">Vamos En Bici Teléfono: <a href="tel:+5493834227881" >+54 9 3834 227881</a></span>
+                </div>
+                
+            </div>
+            <div class="pt-8 border-t border-slate-800 text-center text-xs text-slate-500">
+                &copy; <span id="year"></span> Dirección de Movilidad Urbana Sustentable — Capital Catamarca.
+            </div>
+        </div>
+    </footer>
+      </div>
+
+      <section id="entrevistas" class="site-page news-page" aria-labelledby="entrevistas-title">
+    <header class="sticky top-0 z-50 glass-nav border-b border-slate-200/80 shadow-sm">
+        <div class="card-nav-container w-[92%] max-w-[800px] mx-auto py-3">
+            <nav id="card-nav-news" class="card-nav relative bg-white rounded-xl shadow-md" aria-label="Navegación principal">
+                <div class="card-nav-top absolute inset-x-0 top-0 h-[60px] flex items-center justify-between p-2 pl-4 z-[2]">
+                    <button type="button" id="card-nav-toggle-news" class="hamburger-menu order-2 md:order-none h-full w-10 flex flex-col items-center justify-center gap-[6px] cursor-pointer text-slate-900" onclick="toggleCardNav(this)" aria-label="Abrir menú" aria-expanded="false" aria-controls="card-nav-content-news">
+                        <span class="hamburger-line block w-[30px] h-[2px] bg-current"></span>
+                        <span class="hamburger-line block w-[30px] h-[2px] bg-current"></span>
+                    </button>
+
+                    <a href="#inicio" onclick="returnToMain('inicio'); return false;" class="logo-container order-1 md:order-none md:absolute md:left-1/2 md:top-1/2 md:-translate-x-1/2 md:-translate-y-1/2">
+                        <img src="/img/Logoc.png" alt="Dirección de Movilidad Urbana Sustentable" class="h-10 sm:h-12 w-auto max-w-[30rem] object-contain">
+                    </a>
+
+                    
+                </div>
+
+                <div id="card-nav-content-news" class="card-nav-content absolute left-0 right-0 top-[60px] bottom-0 p-2 flex flex-col items-stretch gap-2 justify-start z-[1] md:flex-row md:items-end md:gap-3" aria-hidden="true" inert>
+                    <div class="nav-card flex flex-col gap-2 p-3 rounded-lg min-w-0 flex-1 min-h-[60px] bg-emerald-100 text-emerald-950">
+                        <div class="font-normal tracking-tight text-lg md:text-xl">Explorá</div>
+                        <div class="mt-auto flex flex-col gap-1 text-sm">
+                            <a href="#inicio" onclick="returnToMain('inicio'); return false;" class="inline-flex items-center gap-1 hover:opacity-70 transition-opacity">↗ Inicio</a>
+                            <a href="#entrevistas-title" onclick="closeCardNav(); document.getElementById('entrevistas-title').scrollIntoView({ behavior: 'smooth', block: 'start' }); return false;" class="inline-flex items-center gap-1 hover:opacity-70 transition-opacity">↗ Novedades y entrevistas</a>
+                            <!-- <a href="#mision1" onclick="closeCardNav(this)" class="inline-flex items-center gap-1 hover:opacity-70 transition-opacity">↗ Institucional</a> -->
+                             <br>
+
+                            <br>
+                        </div>
+                    </div>
+                    <div class="nav-card flex flex-col gap-2 p-3 rounded-lg min-w-0 flex-1 min-h-[60px] bg-sky-100 text-sky-950">
+                        <div class="font-normal tracking-tight text-lg md:text-xl">Programas</div>
+                        <div class="mt-auto flex flex-col gap-1 text-sm">
+                            <a href="#content-vici" onclick="returnToMain('content-vici', 'vici'); return false;" class="inline-flex items-center gap-1 hover:opacity-70 transition-opacity">↗ Vamos en Bici</a>
+                            <a href="#content-banco" onclick="returnToMain('content-banco', 'banco'); return false;" class="inline-flex items-center gap-1 hover:opacity-70 transition-opacity">↗ Banco Solidario</a>
+                            <a href="#content-baja" onclick="returnToMain('content-baja', 'baja'); return false;" class="inline-flex items-center gap-1 hover:opacity-70 transition-opacity">↗ Baja Sube</a>
+                        </div>
+                    </div>
+                    <div class="nav-card flex flex-col gap-2 p-3 rounded-lg min-w-0 flex-1 min-h-[60px] bg-slate-800 text-white">
+                        <div class="font-normal tracking-tight text-lg md:text-xl">Contacto</div>
+                        <div class="mt-auto flex flex-col gap-1 text-sm">
+                            <a href="#contacto-news" onclick="closeCardNav(this)" class="inline-flex items-center gap-1 hover:opacity-70 transition-opacity">↗ Ubicación y contacto</a>
+                            <a href="mailto:vamosenbici@catamarcacapital.gob.ar" onclick="closeCardNav(this)" class="inline-flex items-center gap-1 hover:opacity-70 transition-opacity">↗ Escribinos</a>
+                            <br>
+                        </div>
+                    </div>
+                </div>
+            </nav>
+        </div>
+    </header>
+        <main class="news-main max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-10 sm:py-16 relative z-10">
+            <div class="flex items-center justify-between gap-4 mb-8">
+                <button type="button" onclick="showSitePage(1)" class="group inline-flex items-center gap-2 rounded-full bg-white/85 hover:bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 border border-slate-200/80 shadow-sm hover:shadow transition-all">
+                    <span class="transition-transform group-hover:-translate-x-1" aria-hidden="true">&larr;</span> Volver al sitio
+                </button>
+                <span class="hidden sm:inline-flex items-center gap-2 rounded-lg bg-white px-3 py-1.5 text-xs font-medium text-slate-500 border border-slate-200 shadow-sm">Movilidad Urbana Sustentable</span>
+            </div>
+
+            <header class="text-center max-w-3xl mx-auto mb-10 sm:mb-14">
+                <div class="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-emerald-100 text-emerald-800 text-xs font-semibold tracking-wide uppercase mb-4 border border-emerald-200/80 shadow-sm"><span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>Actualidad</div>
+                <h1 id="entrevistas-title" class="text-3xl sm:text-4xl md:text-5xl font-extrabold text-slate-900 tracking-tight mb-4">Entrevistas y novedades</h1>
+                <p class="text-base sm:text-lg text-slate-600 leading-relaxed">Noticias, entrevistas y actividades de la <span class="font-semibold text-slate-800">Dirección de Movilidad Urbana Sustentable</span> de Catamarca Capital.</p>
+            </header>
+
+            <section class="mb-10" aria-label="Filtrar contenidos">
+                <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-200/80 pb-6">
+                    <div class="flex items-center gap-2 overflow-x-auto py-1" role="group" aria-label="Categorías">
+                        <button type="button" class="news-filter active px-4 py-2 rounded-xl text-sm font-semibold whitespace-nowrap transition-all" data-filter="todos">Todos</button>
+                        <button type="button" class="news-filter px-4 py-2 rounded-xl text-sm font-semibold text-slate-600 hover:text-slate-900 hover:bg-slate-200/60 whitespace-nowrap transition-all" data-filter="novedades">Novedades</button>
+                        <button type="button" class="news-filter px-4 py-2 rounded-xl text-sm font-semibold text-slate-600 hover:text-slate-900 hover:bg-slate-200/60 whitespace-nowrap transition-all" data-filter="entrevistas">Entrevistas</button>
+                        <button type="button" class="news-filter px-4 py-2 rounded-xl text-sm font-semibold text-slate-600 hover:text-slate-900 hover:bg-slate-200/60 whitespace-nowrap transition-all" data-filter="actividades">Actividades</button>
+                    </div>
+                    <span class="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white border border-slate-200 shadow-sm text-xs sm:text-sm font-medium text-slate-500"><span class="text-emerald-600" aria-hidden="true">&#9654;</span><span id="news-count">5</span> contenidos disponibles</span>
+                </div>
+            </section>
+
+            <section class="grid min-w-0 grid-cols-1 xl:grid-cols-12 gap-8 items-start">
+                <div id="news-novedades" class="min-w-0 xl:col-span-7 bg-white/75 backdrop-blur-md rounded-3xl p-6 sm:p-8 border border-white shadow-xl shadow-slate-200/50">
+                    <div class="flex items-center justify-between mb-6 pb-4 border-b border-slate-100">
+                        <div class="flex items-center gap-3"><div class="w-10 h-10 rounded-2xl bg-emerald-100 flex items-center justify-center text-emerald-700 shadow-sm" aria-hidden="true">&#9889;</div><div><h2 class="text-xl font-bold text-slate-900">Novedades y Noticias</h2><p class="text-xs text-slate-500">Últimas acciones y programas institucionales</p></div></div>
+                        <span class="text-xs font-semibold px-2.5 py-1 rounded-md bg-slate-100 text-slate-600 border border-slate-200/60">4 reels</span>
+                    </div>
+                    <div class="grid min-w-0 grid-cols-1 sm:grid-cols-2 gap-6">
+                        <article class="news-card novedades actividades group rounded-2xl overflow-hidden bg-white shadow-sm border border-slate-200/80"><button type="button" class="news-reel-trigger relative w-full overflow-hidden bg-slate-900 text-left" data-video="videos/Semanamovilidad.mp4" data-title="Semana de la Movilidad" data-category="Actividades" aria-label="Reproducir Semana de la Movilidad"><img src="galeria/semm.jpg" alt="Semana de la Movilidad" class="absolute inset-0 h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"><span class="absolute inset-0 z-10 flex items-center justify-center"><span class="flex h-14 w-14 items-center justify-center rounded-full border border-white/30 bg-white/20 text-white shadow-lg backdrop-blur-md transition-transform group-hover:scale-110">&#9654;</span></span><span class="absolute bottom-4 left-4 z-10 text-[11px] font-bold uppercase tracking-wider text-emerald-300">Actividades</span></button><div class="p-4"><h3 class="text-base font-bold text-slate-900">Semana de la Movilidad</h3><p class="mt-1 text-xs text-slate-500">Actividades de concientización y movilidad sustentable.</p></div></article>
+                        <article class="news-card novedades group rounded-2xl overflow-hidden bg-white shadow-sm border border-slate-200/80"><button type="button" class="news-reel-trigger relative w-full overflow-hidden bg-slate-900 text-left" data-video="videos/estudiantes.mp4" data-title="Estudiantes" data-category="Comunidad" aria-label="Reproducir Estudiantes"><img src="galeria/estu.jpg" alt="Estudiantes" class="absolute inset-0 h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"><span class="absolute inset-0 z-10 flex items-center justify-center"><span class="flex h-14 w-14 items-center justify-center rounded-full border border-white/30 bg-white/20 text-white shadow-lg backdrop-blur-md transition-transform group-hover:scale-110">&#9654;</span></span><span class="absolute bottom-4 left-4 z-10 text-[11px] font-bold uppercase tracking-wider text-emerald-300">Comunidad</span></button><div class="p-4"><h3 class="text-base font-bold text-slate-900">Estudiantes</h3><p class="mt-1 text-xs text-slate-500">Participación de jóvenes en rutas seguras para escuelas.</p></div></article>
+                        <article class="news-card novedades group rounded-2xl overflow-hidden bg-white shadow-sm border border-slate-200/80"><button type="button" class="news-reel-trigger relative w-full overflow-hidden bg-slate-900 text-left" data-video="videos/serviciopenintenciario.mp4" data-title="Servicio Penitenciario" data-category="Instituciones" aria-label="Reproducir Servicio Penitenciario"><img src="galeria/peni.jpg" alt="Servicio Penitenciario" class="absolute inset-0 h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"><span class="absolute inset-0 z-10 flex items-center justify-center"><span class="flex h-14 w-14 items-center justify-center rounded-full border border-white/30 bg-white/20 text-white shadow-lg backdrop-blur-md transition-transform group-hover:scale-110">&#9654;</span></span><span class="absolute bottom-4 left-4 z-10 text-[11px] font-bold uppercase tracking-wider text-emerald-300">Peniteciaría</span></button><div class="p-4"><h3 class="text-base font-bold text-slate-900">Banco Solidario de Bicicletas</h3><p class="mt-1 text-xs text-slate-500">Capacitación en oficio para la reinsercion.</p></div></article>
+                        <article class="news-card novedades group rounded-2xl overflow-hidden bg-white shadow-sm border border-slate-200/80"><button type="button" class="news-reel-trigger relative w-full overflow-hidden bg-slate-900 text-left" data-video="videos/bancoservicio.mp4" data-title="Banco Servicio" data-category="Servicios" aria-label="Reproducir Banco Servicio"><img src="galeria/firma.jpg" alt="Banco Servicio" class="absolute inset-0 h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"><span class="absolute inset-0 z-10 flex items-center justify-center"><span class="flex h-14 w-14 items-center justify-center rounded-full border border-white/30 bg-white/20 text-white shadow-lg backdrop-blur-md transition-transform group-hover:scale-110">&#9654;</span></span><span class="absolute bottom-4 left-4 z-10 text-[11px] font-bold uppercase tracking-wider text-emerald-300">instituciones</span></button><div class="p-4"><h3 class="text-base font-bold text-slate-900">Programa Banco Solidario de Bicicletas </h3><p class="mt-1 text-xs text-slate-500">Firma del Convenio con la secretaria de seguridad.</p></div></article>
+                    </div>
+                </div>
+
+                <div id="news-entrevistas" class="min-w-0 xl:col-span-5 bg-white/75 backdrop-blur-md rounded-3xl p-5 sm:p-7 border border-white shadow-xl shadow-slate-200/50">
+                    <div class="flex items-center justify-between mb-6 pb-4 border-b border-slate-100"><div class="flex items-center gap-3"><div class="w-10 h-10 rounded-2xl bg-emerald-100 flex items-center justify-center text-emerald-700 shadow-sm" aria-hidden="true">&#9654;</div><div><h2 class="text-xl font-bold text-slate-900">Entrevistas</h2><p class="text-xs text-slate-500">Notas de radio y streaming</p></div></div><span class="text-xs font-semibold px-2.5 py-1 rounded-md bg-slate-100 text-slate-600 border border-slate-200/60">1 reel</span></div>
+                    <article class="news-card entrevistas group rounded-2xl overflow-hidden bg-slate-900 shadow-md hover:shadow-2xl transition-all duration-300 border border-slate-800"><blockquote class="instagram-media" data-instgrm-captioned data-instgrm-permalink="https://www.instagram.com/p/DNgd1_Gvr1c/?utm_source=ig_embed&amp;utm_campaign=loading" data-instgrm-version="14" style=" background:#FFF; border:0; border-radius:3px; box-shadow:0 0 1px 0 rgba(0,0,0,0.5),0 1px 10px 0 rgba(0,0,0,0.15); margin: 1px; max-width:540px; min-width:326px; padding:0; width:99.375%; width:-webkit-calc(100% - 2px); width:calc(100% - 2px);"><div style="padding:16px;"> <a href="https://www.instagram.com/p/DNgd1_Gvr1c/?utm_source=ig_embed&amp;utm_campaign=loading" style=" background:#FFFFFF; line-height:0; padding:0 0; text-align:center; text-decoration:none; width:100%;" target="_blank"> <div style=" display: flex; flex-direction: row; align-items: center;"> <div style="background-color: #F4F4F4; border-radius: 50%; flex-grow: 0; height: 40px; margin-right: 14px; width: 40px;"></div> <div style="display: flex; flex-direction: column; flex-grow: 1; justify-content: center;"> <div style=" background-color: #F4F4F4; border-radius: 4px; flex-grow: 0; height: 14px; margin-bottom: 6px; width: 100px;"></div> <div style=" background-color: #F4F4F4; border-radius: 4px; flex-grow: 0; height: 14px; width: 60px;"></div></div></div><div style="padding: 19% 0;"></div> <div style="display:block; height:50px; margin:0 auto 12px; width:50px;"><svg width="50px" height="50px" viewBox="0 0 60 60" version="1.1" xmlns="https://www.w3.org/2000/svg" xmlns:xlink="https://www.w3.org/1999/xlink"><g stroke="none" stroke-width="1" fill="none" fill-rule="evenodd"><g transform="translate(-511.000000, -20.000000)" fill="#000000"><g><path d="M556.869,30.41 C554.814,30.41 553.148,32.076 553.148,34.131 C553.148,36.186 554.814,37.852 556.869,37.852 C558.924,37.852 560.59,36.186 560.59,34.131 C560.59,32.076 558.924,30.41 556.869,30.41 M541,60.657 C535.114,60.657 530.342,55.887 530.342,50 C530.342,44.114 535.114,39.342 541,39.342 C546.887,39.342 551.658,44.114 551.658,50 C551.658,55.887 546.887,60.657 541,60.657 M541,33.886 C532.1,33.886 524.886,41.1 524.886,50 C524.886,58.899 532.1,66.113 541,66.113 C549.9,66.113 557.115,58.899 557.115,50 C557.115,41.1 549.9,33.886 541,33.886 M565.378,62.101 C565.244,65.022 564.756,66.606 564.346,67.663 C563.803,69.06 563.154,70.057 562.106,71.106 C561.058,72.155 560.06,72.803 558.662,73.347 C557.607,73.757 556.021,74.244 553.102,74.378 C549.944,74.521 548.997,74.552 541,74.552 C533.003,74.552 532.056,74.521 528.898,74.378 C525.979,74.244 524.393,73.757 523.338,73.347 C521.94,72.803 520.942,72.155 519.894,71.106 C518.846,70.057 518.197,69.06 517.654,67.663 C517.244,66.606 516.755,65.022 516.623,62.101 C516.479,58.943 516.448,57.996 516.448,50 C516.448,42.003 516.479,41.056 516.623,37.899 C516.755,34.978 517.244,33.391 517.654,32.338 C518.197,30.938 518.846,29.942 519.894,28.894 C520.942,27.846 521.94,27.196 523.338,26.654 C524.393,26.244 525.979,25.756 528.898,25.623 C532.057,25.479 533.004,25.448 541,25.448 C548.997,25.448 549.943,25.479 553.102,25.623 C556.021,25.756 557.607,26.244 558.662,26.654 C560.06,27.196 561.058,27.846 562.106,28.894 C563.154,29.942 563.803,30.938 564.346,32.338 C564.756,33.391 565.244,34.978 565.378,37.899 C565.522,41.056 565.552,42.003 565.552,50 C565.552,57.996 565.522,58.943 565.378,62.101 M570.82,37.631 C570.674,34.438 570.167,32.258 569.425,30.349 C568.659,28.377 567.633,26.702 565.965,25.035 C564.297,23.368 562.623,22.342 560.652,21.575 C558.743,20.834 556.562,20.326 553.369,20.18 C550.169,20.033 549.148,20 541,20 C532.853,20 531.831,20.033 528.631,20.18 C525.438,20.326 523.257,20.834 521.349,21.575 C519.376,22.342 517.703,23.368 516.035,25.035 C514.368,26.702 513.342,28.377 512.574,30.349 C511.834,32.258 511.326,34.438 511.181,37.631 C511.035,40.831 511,41.851 511,50 C511,58.147 511.035,59.17 511.181,62.369 C511.326,65.562 511.834,67.743 512.574,69.651 C513.342,71.625 514.368,73.296 516.035,74.965 C517.703,76.634 519.376,77.658 521.349,78.425 C523.257,79.167 525.438,79.673 528.631,79.82 C531.831,79.965 532.853,80.001 541,80.001 C549.148,80.001 550.169,79.965 553.369,79.82 C556.562,79.673 558.743,79.167 560.652,78.425 C562.623,77.658 564.297,76.634 565.965,74.965 C567.633,73.296 568.659,71.625 569.425,69.651 C570.167,67.743 570.674,65.562 570.82,62.369 C570.966,59.17 571,58.147 571,50 C571,41.851 570.966,40.831 570.82,37.631"></path></g></g></g></svg></div><div style="padding-top: 8px;"> <div style=" color:#3897f0; font-family:Arial,sans-serif; font-size:14px; font-style:normal; font-weight:550; line-height:18px;">View this post on Instagram</div></div><div style="padding: 12.5% 0;"></div> <div style="display: flex; flex-direction: row; margin-bottom: 14px; align-items: center;"><div> <div style="background-color: #F4F4F4; border-radius: 50%; height: 12.5px; width: 12.5px; transform: translateX(0px) translateY(7px);"></div> <div style="background-color: #F4F4F4; height: 12.5px; transform: rotate(-45deg) translateX(3px) translateY(1px); width: 12.5px; flex-grow: 0; margin-right: 14px; margin-left: 2px;"></div> <div style="background-color: #F4F4F4; border-radius: 50%; height: 12.5px; width: 12.5px; transform: translateX(9px) translateY(-18px);"></div></div><div style="margin-left: 8px;"> <div style=" background-color: #F4F4F4; border-radius: 50%; flex-grow: 0; height: 20px; width: 20px;"></div> <div style=" width: 0; height: 0; border-top: 2px solid transparent; border-left: 6px solid #f4f4f4; border-bottom: 2px solid transparent; transform: translateX(16px) translateY(-4px) rotate(30deg)"></div></div><div style="margin-left: auto;"> <div style=" width: 0px; border-top: 8px solid #F4F4F4; border-right: 8px solid transparent; transform: translateY(16px);"></div> <div style=" background-color: #F4F4F4; flex-grow: 0; height: 12px; width: 16px; transform: translateY(-4px);"></div> <div style=" width: 0; height: 0; border-top: 8px solid #F4F4F4; border-left: 8px solid transparent; transform: translateY(-4px) translateX(8px);"></div></div></div> <div style="display: flex; flex-direction: column; flex-grow: 1; justify-content: center; margin-bottom: 24px;"> <div style=" background-color: #F4F4F4; border-radius: 4px; flex-grow: 0; height: 14px; margin-bottom: 6px; width: 224px;"></div> <div style=" background-color: #F4F4F4; border-radius: 4px; flex-grow: 0; height: 14px; width: 144px;"></div></div></a><p style=" color:#c9c8cd; font-family:Arial,sans-serif; font-size:14px; line-height:17px; margin-bottom:0; margin-top:8px; overflow:hidden; padding:8px 0 7px; text-align:center; text-overflow:ellipsis; white-space:nowrap;"><a href="https://www.instagram.com/p/DNgd1_Gvr1c/?utm_source=ig_embed&amp;utm_campaign=loading" style=" color:#c9c8cd; font-family:Arial,sans-serif; font-size:14px; font-style:normal; font-weight:normal; line-height:17px; text-decoration:none;" target="_blank">A post shared by FDF (@_fueradeformato)</a></p></div></blockquote>
+<script async src="//www.instagram.com/embed.js"></script><div class="p-5"><span class="text-[11px] font-bold tracking-wider uppercase text-emerald-300">Entrevista</span><h3 class="mt-1 text-lg font-extrabold text-white">Entrevista a Andrés Otado</h3><p class="text-xs text-emerald-200 font-medium mt-1">Director de Movilidad Urbana Sustentable</p><p class="text-xs text-slate-300 mt-2 leading-relaxed">Estrategias, avances y desafíos para una movilidad moderna y sustentable.</p></div></article>
+                </div>
+            </section>
+        </main>
+        <div id="news-video-modal" class="hidden fixed inset-0 z-[60] items-center justify-center bg-slate-950/85 p-4 backdrop-blur-md" role="dialog" aria-modal="true" aria-labelledby="news-modal-title">
+            <div class="relative w-full max-w-sm overflow-hidden rounded-3xl bg-slate-950 shadow-2xl ring-1 ring-white/10">
+                <button id="news-modal-close" type="button" class="absolute right-3 top-3 z-10 flex h-10 w-10 items-center justify-center rounded-full bg-slate-950/70 text-xl text-white backdrop-blur-md hover:bg-slate-800" aria-label="Cerrar video">&times;</button>
+                <video id="news-modal-video" class="aspect-[9/16] w-full bg-black object-contain" controls playsinline></video>
+                <div class="p-5"><span id="news-modal-category" class="text-[11px] font-bold uppercase tracking-wider text-emerald-300">Categoría</span><h2 id="news-modal-title" class="mt-1 text-lg font-bold text-white">Título del reel</h2></div>
+            </div>
+        </div>
+    <footer id="contacto-news" class="bg-slate-900 text-slate-400 py-12 border-t border-slate-800">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mb-8">
+                <div>
+                    <h4 class="text-white font-bold text-base mb-3">Movilidad Urbana Sustentable</h4>
+                    <p class="text-xs leading-relaxed text-slate-400">
+                        Municipalidad de San Fernando del Valle de Catamarca. Trabajando juntos por un medio ambiente sano, seguro y equilibrado.
+                    </p>
+                </div>
+                <div>
+                    <h4 class="text-white font-bold text-base mb-3">Programas Activos</h4>
+                    <ul class="text-xs space-y-2">
+                        <li><a href="#content-vici" onclick="returnToMain('content-vici', 'vici'); return false;" class="hover:text-white transition-colors">Vamos en Bici</a></li>
+                        <li><a href="#content-banco" onclick="returnToMain('content-banco', 'banco'); return false;" class="hover:text-white transition-colors">Banco Solidario de Bicicletas</a></li>
+                        <li><a href="#content-baja" onclick="returnToMain('content-baja', 'baja'); return false;" class="hover:text-white transition-colors">Baja y Sube</a></li>
+                    </ul>
+                </div>
+                
+                <div>
+                    <h4 class="text-white font-bold text-base mb-3">Ubicación</h4>
+                    <p class="text-xs leading-relaxed text-slate-400">
+                       San Fernando del Valle de Catamarca
+                    </p>
+                    <br>
+                    <h4 class="text-white font-bold text-base mb-3">Contacto</h4>
+                    <p class="text-xs leading-relaxed">
+                         <a href="https://www.instagram.com/vamosenbici.cta?stkn=eTl6ZWFoenFtcm4y" class="logo-container "> Instagram
+                        
+                    </a><br>
+                        
+                    </p>
+                    
+                    <span class="text-xs leading-relaxed text-slate-400"> Movilidad Urbana Sustentable Teléfono: <a href="tel:+5493834582043" >+54 9 3834582043</a></span>
+                    
+                    <br>
+                    <span class="text-xs leading-relaxed text-slate-400">Vamos En Bici Teléfono: <a href="tel:+5493834227881" >+54 9 3834 227881</a></span>
+                </div>
+                
+            </div>
+            <div class="pt-8 border-t border-slate-800 text-center text-xs text-slate-500">
+                &copy; <span id="year-news"></span> Dirección de Movilidad Urbana Sustentable — Capital Catamarca.
+            </div>
+        </div>
+    </footer>
+      </section>
+    </div>
+    <canvas id="click-spark-canvas" aria-hidden="true"></canvas>
+
+    <!-- Visor de la galería del Banco Solidario -->
+    <div id="banco-gallery-modal" class="hidden fixed inset-0 z-50 bg-slate-950/90 p-5 items-center justify-center" role="dialog" aria-modal="true" aria-label="Imagen ampliada">
+        <button id="banco-gallery-close" type="button" class="absolute top-5 right-5 text-white text-4xl leading-none hover:text-amber-300 focus:outline-none focus:ring-2 focus:ring-amber-300 rounded" aria-label="Cerrar imagen">&times;</button>
+        <img id="banco-gallery-image" src="" alt="" class="max-w-full max-h-full rounded-xl shadow-2xl">
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+        document.getElementById('year').textContent = new Date().getFullYear();
+        document.getElementById('year-news').textContent = new Date().getFullYear();
+
+        const bikeMapElement = document.getElementById('bike-map');
+        if (bikeMapElement && window.L) {
+            const bikeLocations = [
+                { name: 'Dique "El Jumeal"', type: 'Estación Container', hours: '10 - 18h', lat: -28.45677607, lng: -65.8067816778641 },
+                { name: 'Plaza del Nido', type: 'Estación Intermedia', hours: '7 - 23h', lat: -28.432136, lng: -65.774273 },
+                { name: 'ISAC', type: 'Estación Container', hours: '7 - 23h', lat: -28.46856759, lng: -65.7697792592976 },
+                { name: 'Instituto de Formación Docente', type: 'Estación Container', hours: '7 - 23h', lat: -28.49329261, lng: -65.7835315128669 },
+                { name: 'NODO', type: 'Estación Container', hours: '7 - 23h', lat: -28.476681, lng: -65.787703 },
+                { name: 'Parque de los niños', type: 'Estación Container', hours: '7 - 23h', lat: -28.46039089, lng: -65.7675727360512 },
+                { name: 'Parque Lineal', type: 'Estación Intermedia', hours: '7 - 23h', lat: -28.46279598, lng: -65.774721181898 },
+                { name: 'Plaza 25 de Agosto', type: 'Estación Container', hours: '7 - 23h', lat: -28.4765504, lng: -65.7769148691786 },
+                { name: 'Plaza 25 de Mayo', type: 'Estación Container', hours: '7 - 23h', lat: -28.4692933, lng: -65.7793825811337 },
+                { name: 'Plaza Cruz Negra', type: 'Estación Intermedia', hours: '7 - 23h', lat: -28.45277507, lng: -65.7448024203549 },
+                { name: 'Plaza de Casa de la Puna', type: 'Estación Intermedia', hours: '7 - 23h', lat: -28.453206, lng: -65.757026 },
+                { name: 'Plaza de Choya', type: 'Estación Container', hours: '7 - 23h', lat: -28.45037726, lng: -65.7883032857775 },
+                { name: 'Plaza de Valle Chico', type: 'Estación Intermedia', hours: '7 - 23h', lat: -28.50688355, lng: -65.8198578209421 },
+                { name: 'Plaza Los Ceibos', type: 'Estación Intermedia', hours: '7 - 23h', lat: -28.43092737, lng: -65.7823046867614 },
+                { name: 'Plaza Sirio Libanesa', type: 'Estación Intermedia', hours: '7 - 23h', lat: -28.4632086, lng: -65.7998107884628 },
+                { name: 'Plaza Virgen del Valle', type: 'Estación Container', hours: '7 - 23h', lat: -28.46091798, lng: -65.7841606103466 },
+                { name: 'Predio Ferial "Poncho"', type: 'Estación Container', hours: '7 - 23h', lat: -28.44721353, lng: -65.7553829173539 },
+                { name: 'Punto Giro Predio', type: 'Estación Punto GIRO', hours: '8 - 20h', lat: -28.44526073, lng: -65.7589870830455 },
+                { name: 'Punto Giro Valle Chico', type: 'Estación Punto GIRO', hours: '8 - 20h', lat: -28.49835099, lng: -65.8173680606283 }
+            ];
+            const bikeMap = L.map(bikeMapElement, { zoomControl: true }).setView([-28.465, -65.78], 13);
+            window.bikeMap = bikeMap;
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '&copy; OpenStreetMap contributors' }).addTo(bikeMap);
+            const bikeMarkerLayer = L.layerGroup().addTo(bikeMap);
+            const bikeMarkers = new Map();
+            let bikeActiveFilter = 'todos';
+
+            function bikeMarkerIcon(type) {
+                const color = type === 'Estación Intermedia' ? '#059669' : type === 'Estación Punto GIRO' ? '#ea580c' : '#2563eb';
+                return L.divIcon({ className: '', html: `<div style="width:28px;height:28px;border-radius:50% 50% 50% 0;background:${color};transform:rotate(-45deg);border:3px solid white;box-shadow:0 4px 12px rgba(0,0,0,.28);display:flex;align-items:center;justify-content:center"><span style="width:7px;height:7px;background:white;border-radius:50%;display:block"></span></div>`, iconSize: [28, 28], iconAnchor: [14, 28], popupAnchor: [0, -26] });
+            }
+
+            function bikeRouteUrl(item) { return `https://www.google.com/maps/dir/?api=1&destination=${item.lat},${item.lng}`; }
+            function bikePopup(item) { return `<strong>${item.name}</strong><br><small>${item.type}<br>Horario: ${item.hours}</small><br><a href="${bikeRouteUrl(item)}" target="_blank" rel="noopener">Cómo llegar</a>`; }
+            function selectBikeLocation(index) {
+                const item = bikeLocations[index];
+                if (!item) return;
+                document.querySelectorAll('.bike-map-card').forEach(card => card.classList.remove('selected'));
+                document.getElementById(`bike-card-${index}`)?.classList.add('selected');
+                bikeMap.flyTo([item.lat, item.lng], 16, { duration: .7 });
+                bikeMarkers.get(index)?.openPopup();
+            }
+            function renderBikeMap() {
+                const query = document.getElementById('bike-map-search').value.trim().toLowerCase();
+                const filtered = bikeLocations.map((item, index) => ({ item, index })).filter(({ item }) => {
+                    return (item.name.toLowerCase().includes(query) || item.type.toLowerCase().includes(query)) && (bikeActiveFilter === 'todos' || item.type === bikeActiveFilter);
+                });
+                document.getElementById('bike-map-count').textContent = `${filtered.length} resultado${filtered.length === 1 ? '' : 's'}`;
+                document.getElementById('bike-map-cards').innerHTML = filtered.length ? filtered.map(({ item, index }) => `<article class="bike-map-card" id="bike-card-${index}" onclick="selectBikeLocation(${index})"><h5>${item.name}</h5><p>${item.type} · ${item.hours}</p></article>`).join('') : '<p class="text-xs text-slate-500">No se encontraron estaciones.</p>';
+                bikeMarkerLayer.clearLayers();
+                filtered.forEach(({ index }) => bikeMarkerLayer.addLayer(bikeMarkers.get(index)));
+            }
+            window.selectBikeLocation = selectBikeLocation;
+            bikeLocations.forEach((item, index) => { const marker = L.marker([item.lat, item.lng], { icon: bikeMarkerIcon(item.type), title: item.name }).bindPopup(bikePopup(item)); marker.on('click', () => selectBikeLocation(index)); bikeMarkers.set(index, marker); });
+            document.getElementById('bike-map-search').addEventListener('input', renderBikeMap);
+            document.querySelectorAll('[data-bike-filter]').forEach(button => button.addEventListener('click', () => { document.querySelectorAll('[data-bike-filter]').forEach(item => item.classList.remove('active')); button.classList.add('active'); bikeActiveFilter = button.dataset.bikeFilter; renderBikeMap(); }));
+            renderBikeMap();
+            bikeMap.fitBounds(L.latLngBounds(bikeLocations.map(item => [item.lat, item.lng])), { padding: [25, 25] });
+            window.addEventListener('resize', () => bikeMap.invalidateSize());
+        }
+
+        const bancoGalleryModal = document.getElementById('banco-gallery-modal');
+        const bancoGalleryImage = document.getElementById('banco-gallery-image');
+        const bancoGalleryClose = document.getElementById('banco-gallery-close');
+
+        function closeBancoGallery() {
+            bancoGalleryModal.classList.add('hidden');
+            bancoGalleryModal.classList.remove('flex');
+        }
+
+        document.querySelectorAll('.banco-gallery-item').forEach((item) => {
+            item.addEventListener('click', () => {
+                const image = item.querySelector('img');
+                bancoGalleryImage.src = image.src;
+                bancoGalleryImage.alt = image.alt;
+                bancoGalleryModal.classList.remove('hidden');
+                bancoGalleryModal.classList.add('flex');
+                bancoGalleryClose.focus();
+            });
+        });
+
+        bancoGalleryClose.addEventListener('click', closeBancoGallery);
+        bancoGalleryModal.addEventListener('click', (event) => {
+            if (event.target === bancoGalleryModal) closeBancoGallery();
+        });
+        document.addEventListener('keydown', (event) => {
+            if (event.key === 'Escape' && !bancoGalleryModal.classList.contains('hidden')) closeBancoGallery();
+        });
+
+        const heroCarousel = document.getElementById('hero-carousel');
+        const heroSlides = Array.from(document.querySelectorAll('.hero-slide'));
+        const heroDotsContainer = document.getElementById('hero-carousel-dots');
+        const heroDots = heroSlides.map((_, index) => {
+            const dot = document.createElement('button');
+            dot.type = 'button';
+            dot.className = `hero-carousel-dot w-2.5 h-2.5 rounded-full hover:bg-white transition-colors ${index === 0 ? 'bg-white' : 'bg-white/50'}`;
+            dot.setAttribute('aria-label', `Ver diapositiva ${index + 1}`);
+            dot.setAttribute('aria-current', String(index === 0));
+            dot.addEventListener('click', () => {
+                showHeroSlide(index);
+                startHeroAutoplay();
+            });
+            heroDotsContainer.appendChild(dot);
+            return dot;
+        });
+        const reduceHeroMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        let activeHeroSlide = 0;
+        let heroAutoplay;
+
+        function showHeroSlide(index) {
+            activeHeroSlide = (index + heroSlides.length) % heroSlides.length;
+            heroSlides.forEach((slide, slideIndex) => {
+                const isActive = slideIndex === activeHeroSlide;
+                slide.classList.toggle('is-active', isActive);
+                const video = slide.querySelector('video');
+                if (video) {
+                    if (isActive) video.play().catch(() => {});
+                    else video.pause();
+                }
+            });
+            heroDots.forEach((dot, dotIndex) => {
+                const isActive = dotIndex === activeHeroSlide;
+                dot.classList.toggle('bg-white', isActive);
+                dot.classList.toggle('bg-white/50', !isActive);
+                dot.setAttribute('aria-current', String(isActive));
+            });
+        }
+
+        function stopHeroAutoplay() {
+            window.clearInterval(heroAutoplay);
+        }
+
+        function startHeroAutoplay() {
+            if (reduceHeroMotion || heroSlides.length < 2) return;
+            stopHeroAutoplay();
+            heroAutoplay = window.setInterval(() => showHeroSlide(activeHeroSlide + 1), 5500);
+        }
+
+        document.querySelectorAll('[data-hero-direction]').forEach(control => {
+            control.addEventListener('click', () => {
+                showHeroSlide(activeHeroSlide + (control.dataset.heroDirection === 'next' ? 1 : -1));
+                startHeroAutoplay();
+            });
+        });
+        heroCarousel.addEventListener('mouseenter', stopHeroAutoplay);
+        heroCarousel.addEventListener('mouseleave', startHeroAutoplay);
+        startHeroAutoplay();
+
+        const animatedElements = document.querySelectorAll(
+            'header, #inicio .max-w-7xl > div, #mision1 .grid > div, #mision1 .grid > div > div, #programas > .max-w-7xl > .text-center, .program-card, #content-vici > .grid, #content-vici > div, #content-banco .max-w-4xl > *, #content-baja .max-w-4xl > *, footer .grid > div'
+        );
+
+        animatedElements.forEach((element, index) => {
+            element.dataset.animate = '';
+            element.style.setProperty('--animate-delay', `${Math.min(index % 4, 3) * 0.08}s`);
+        });
+
+        if ('IntersectionObserver' in window) {
+            const animationObserver = new IntersectionObserver((entries, observer) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        entry.target.classList.add('is-visible');
+                        observer.unobserve(entry.target);
+                    }
+                });
+            }, { threshold: 0.1 });
+
+            animatedElements.forEach(element => animationObserver.observe(element));
+        } else {
+            animatedElements.forEach(element => element.classList.add('is-visible'));
+        }
+
+        const sparkCanvas = document.getElementById('click-spark-canvas');
+        const sparkContext = sparkCanvas.getContext('2d');
+        const sparks = [];
+        let sparkAnimationId = null;
+        let sparkScale = 1;
+        const sparkSettings = {
+            color: '#000000',
+            size: 10,
+            radius: 15,
+            count: 8,
+            duration: 400,
+            extraScale: 1
+        };
+
+        function resizeSparkCanvas() {
+            sparkScale = window.devicePixelRatio || 1;
+            sparkCanvas.width = window.innerWidth * sparkScale;
+            sparkCanvas.height = window.innerHeight * sparkScale;
+            sparkContext.setTransform(sparkScale, 0, 0, sparkScale, 0, 0);
+        }
+
+        function animateSparks(timestamp) {
+            sparkContext.clearRect(0, 0, window.innerWidth, window.innerHeight);
+
+            for (let index = sparks.length - 1; index >= 0; index -= 1) {
+                const spark = sparks[index];
+                const progress = (timestamp - spark.startTime) / sparkSettings.duration;
+
+                if (progress >= 1) {
+                    sparks.splice(index, 1);
+                    continue;
+                }
+
+                const eased = progress * (2 - progress);
+                const distance = eased * sparkSettings.radius * sparkSettings.extraScale;
+                const lineLength = sparkSettings.size * (1 - eased);
+                const startX = spark.x + distance * Math.cos(spark.angle);
+                const startY = spark.y + distance * Math.sin(spark.angle);
+                const endX = spark.x + (distance + lineLength) * Math.cos(spark.angle);
+                const endY = spark.y + (distance + lineLength) * Math.sin(spark.angle);
+
+                sparkContext.strokeStyle = sparkSettings.color;
+                sparkContext.globalAlpha = 1 - progress;
+                sparkContext.lineWidth = 2;
+                sparkContext.beginPath();
+                sparkContext.moveTo(startX, startY);
+                sparkContext.lineTo(endX, endY);
+                sparkContext.stroke();
+            }
+
+            sparkContext.globalAlpha = 1;
+            if (sparks.length > 0) {
+                sparkAnimationId = requestAnimationFrame(animateSparks);
+            } else {
+                sparkAnimationId = null;
+            }
+        }
+
+        resizeSparkCanvas();
+        window.addEventListener('resize', resizeSparkCanvas);
+        document.addEventListener('click', event => {
+            if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+
+            const now = performance.now();
+
+        function updateBorderGlow(card, clientX, clientY) {
+            const rect = card.getBoundingClientRect();
+            const x = clientX - rect.left;
+            const y = clientY - rect.top;
+            const nearestEdge = Math.min(x, rect.width - x, y, rect.height - y);
+            const edgeDistance = Math.max(0, Math.min(1, nearestEdge / (Math.min(rect.width, rect.height) / 2)));
+            const edgeProximity = 1 - edgeDistance;
+            const angle = (Math.atan2(y - rect.height / 2, x - rect.width / 2) * 180 / Math.PI + 90 + 360) % 360;
+            const opacity = Math.max(0, (edgeProximity * 100 - 30) / 70);
+
+            card.style.setProperty('--glow-angle', `${angle}deg`);
+            card.style.setProperty('--glow-opacity', opacity.toFixed(3));
+        }
+
+        document.querySelectorAll('.border-glow').forEach(card => {
+            card.addEventListener('pointermove', event => {
+                if (card.dataset.glowFocused !== 'true') {
+                    updateBorderGlow(card, event.clientX, event.clientY);
+                }
+            });
+
+            card.addEventListener('pointerenter', event => {
+                updateBorderGlow(card, event.clientX, event.clientY);
+            });
+
+            card.addEventListener('pointerleave', () => {
+                if (card.dataset.glowFocused !== 'true') {
+                    card.style.setProperty('--glow-opacity', '0');
+                }
+            });
+
+            card.addEventListener('focusin', () => {
+                card.dataset.glowFocused = 'true';
+                card.style.setProperty('--glow-angle', '45deg');
+                card.style.setProperty('--glow-opacity', '0.85');
+            });
+
+            card.addEventListener('focusout', event => {
+                if (!card.contains(event.relatedTarget)) {
+                    card.dataset.glowFocused = 'false';
+                    card.style.setProperty('--glow-opacity', '0');
+                }
+            });
+        });
+            for (let index = 0; index < sparkSettings.count; index += 1) {
+                sparks.push({
+                    x: event.clientX,
+                    y: event.clientY,
+                    angle: (2 * Math.PI * index) / sparkSettings.count,
+                    startTime: now
+                });
+            }
+
+            if (!sparkAnimationId) {
+                sparkAnimationId = requestAnimationFrame(animateSparks);
+            }
+        });
+
+        function selectProgram(progId) {
+            const programs = ['vici', 'banco', 'baja'];
+            if (!programs.includes(progId)) return;
+            
+            programs.forEach(id => {
+                const btn = document.getElementById(`btn-${id}`);
+                const icon = document.getElementById(`icon-${id}`);
+                const content = document.getElementById(`content-${id}`);
+
+                if (id === progId) {
+                    btn.classList.add('border-slate-300', 'shadow-md');
+                    btn.classList.remove('border-brand-500', 'border-transparent', 'shadow-sm');
+                    icon.classList.remove('bg-brand-500');
+                    icon.classList.remove('bg-slate-100', 'text-slate-600');
+                    content.classList.remove('hidden');
+                } else {
+                    btn.classList.remove('border-brand-500', 'border-slate-300', 'shadow-md');
+                    btn.classList.add('border-transparent', 'shadow-sm');
+                    icon.classList.remove('bg-brand-500', 'text-white');
+                    icon.classList.add('bg-slate-100', 'text-slate-600');
+                    content.classList.add('hidden');
+                }
+            });
+
+            document.getElementById(`content-${progId}`).scrollIntoView({
+                behavior: 'smooth',
+                block: 'start'
+            });
+
+            const mainPage = document.querySelector('.site-page');
+            updateSiteSliderHeight(mainPage);
+            window.requestAnimationFrame(() => updateSiteSliderHeight(mainPage));
+            if (progId === 'vici' && window.bikeMap?.invalidateSize) {
+                window.requestAnimationFrame(() => window.bikeMap.invalidateSize());
+            }
+        }
+
+        function showSitePage(pageNumber) {
+            const slider = document.getElementById('siteSlider');
+            const pages = slider.querySelectorAll('.site-page');
+            const showNews = pageNumber === 2;
+            const activePage = pages[showNews ? 1 : 0];
+            slider.classList.toggle('shift', showNews);
+            updateSiteSliderHeight(activePage);
+            window.requestAnimationFrame(() => updateSiteSliderHeight(activePage));
+            window.setTimeout(() => updateSiteSliderHeight(activePage), 900);
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        function updateSiteSliderHeight(activePage) {
+            const slider = document.getElementById('siteSlider');
+            if (!slider || !activePage) return;
+            slider.style.height = `${Math.max(activePage.scrollHeight, window.innerHeight)}px`;
+        }
+
+        if ('ResizeObserver' in window) {
+            const siteSlider = document.getElementById('siteSlider');
+            const observedPages = siteSlider.querySelectorAll('.site-page');
+            const pageSizeObserver = new ResizeObserver(() => {
+                const activePage = siteSlider.querySelector(siteSlider.classList.contains('shift') ? '#entrevistas' : '.site-page');
+                updateSiteSliderHeight(activePage);
+            });
+            observedPages.forEach(page => pageSizeObserver.observe(page));
+        }
+
+        function returnToMain(sectionId, programId) {
+            closeCardNav();
+            showSitePage(1);
+            window.setTimeout(() => {
+                if (programId) selectProgram(programId);
+                else navigateToSection(sectionId);
+            }, 850);
+        }
+
+        function navigateToSection(sectionId) {
+            closeCardNav();
+            const section = document.getElementById(sectionId);
+            if (section) {
+                section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+        }
+
+        function calculateCardNavHeight(nav) {
+            const content = nav?.querySelector('.card-nav-content');
+            if (!nav || !content) return 60;
+
+            if (window.matchMedia('(max-width: 768px)').matches) {
+                const previousVisibility = content.style.visibility;
+                const previousPosition = content.style.position;
+                const previousHeight = content.style.height;
+
+                content.style.visibility = 'visible';
+                content.style.position = 'static';
+                content.style.height = 'auto';
+                const height = 60 + content.scrollHeight;
+
+                content.style.visibility = previousVisibility;
+                content.style.position = previousPosition;
+                content.style.height = previousHeight;
+                return height;
+            }
+
+            return 210;
+        }
+
+        function toggleCardNav(button) {
+            const nav = button.closest('.card-nav');
+            const content = nav.querySelector('.card-nav-content');
+            const isOpen = nav.classList.toggle('open');
+
+            nav.style.height = isOpen ? `${calculateCardNavHeight(nav)}px` : '60px';
+            button.classList.toggle('open', isOpen);
+            button.setAttribute('aria-expanded', String(isOpen));
+            button.setAttribute('aria-label', isOpen ? 'Cerrar menú' : 'Abrir menú');
+            content.setAttribute('aria-hidden', String(!isOpen));
+            content.inert = !isOpen;
+        }
+
+        function closeCardNav(trigger) {
+            const nav = trigger?.closest('.card-nav') || document.querySelector('.card-nav.open') || document.querySelector('.card-nav');
+            if (!nav) return;
+            const button = nav.querySelector('.hamburger-menu');
+            const content = nav.querySelector('.card-nav-content');
+
+            if (content.contains(document.activeElement)) {
+                document.activeElement.blur();
+            }
+
+            nav.classList.remove('open');
+            nav.style.height = '60px';
+            button.classList.remove('open');
+            button.setAttribute('aria-expanded', 'false');
+            button.setAttribute('aria-label', 'Abrir menú');
+            content.setAttribute('aria-hidden', 'true');
+            content.inert = true;
+        }
+
+        const newsVideoModal = document.getElementById('news-video-modal');
+        document.body.appendChild(newsVideoModal);
+        const newsModalVideo = document.getElementById('news-modal-video');
+        const newsModalClose = document.getElementById('news-modal-close');
+        const newsModalTitle = document.getElementById('news-modal-title');
+        const newsModalCategory = document.getElementById('news-modal-category');
+
+        function closeNewsVideoModal() {
+            newsModalVideo.pause();
+            newsModalVideo.removeAttribute('src');
+            newsModalVideo.load();
+            newsVideoModal.classList.add('hidden');
+            newsVideoModal.classList.remove('flex');
+            document.body.style.overflow = '';
+        }
+
+        document.querySelectorAll('.news-reel-trigger').forEach(trigger => {
+            trigger.addEventListener('click', () => {
+                newsModalVideo.src = trigger.dataset.video;
+                newsModalTitle.textContent = trigger.dataset.title;
+                newsModalCategory.textContent = trigger.dataset.category;
+                newsVideoModal.classList.remove('hidden');
+                newsVideoModal.classList.add('flex');
+                document.body.style.overflow = 'hidden';
+                newsModalVideo.play().catch(() => {});
+                newsModalClose.focus();
+            });
+        });
+
+        newsModalClose.addEventListener('click', closeNewsVideoModal);
+        newsVideoModal.addEventListener('click', event => {
+            if (event.target === newsVideoModal) closeNewsVideoModal();
+        });
+        document.addEventListener('keydown', event => {
+            if (event.key === 'Escape' && !newsVideoModal.classList.contains('hidden')) closeNewsVideoModal();
+        });
+
+        const newsFilters = document.querySelectorAll('.news-filter');
+        const newsCards = document.querySelectorAll('.news-card');
+        const newsNovedades = document.getElementById('news-novedades');
+        const newsEntrevistas = document.getElementById('news-entrevistas');
+        const newsCount = document.getElementById('news-count');
+
+        newsFilters.forEach(filter => {
+            filter.addEventListener('click', () => {
+                const category = filter.dataset.filter;
+                let visibleCount = 0;
+
+                newsFilters.forEach(button => {
+                    button.classList.toggle('active', button === filter);
+                    button.classList.toggle('text-slate-600', button !== filter);
+                    button.classList.toggle('hover:text-slate-900', button !== filter);
+                    button.classList.toggle('hover:bg-slate-200/60', button !== filter);
+                });
+
+                newsCards.forEach(card => {
+                    const isVisible = category === 'todos' || card.classList.contains(category);
+                    card.classList.toggle('hidden', !isVisible);
+                    if (isVisible) visibleCount += 1;
+                });
+
+                newsNovedades.classList.toggle('hidden', category === 'entrevistas');
+                newsEntrevistas.classList.toggle('hidden', category === 'novedades' || category === 'actividades');
+                newsNovedades.classList.toggle('xl:col-span-12', category === 'novedades' || category === 'actividades');
+                newsNovedades.classList.toggle('xl:col-span-7', category !== 'novedades' && category !== 'actividades');
+                newsEntrevistas.classList.toggle('xl:col-span-12', category === 'entrevistas');
+                newsEntrevistas.classList.toggle('xl:col-span-5', category !== 'entrevistas');
+                newsCount.textContent = visibleCount;
+            });
+        });
+
+        window.addEventListener('resize', () => {
+            document.querySelectorAll('.card-nav.open').forEach(nav => {
+                nav.style.height = `${calculateCardNavHeight(nav)}px`;
+            });
+            const slider = document.getElementById('siteSlider');
+            const activePage = slider.querySelector(slider.classList.contains('shift') ? '#entrevistas' : '.site-page');
+            updateSiteSliderHeight(activePage);
+        });
+    </script>
+</body>
+</html>
